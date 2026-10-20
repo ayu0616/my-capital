@@ -1,0 +1,40 @@
+/**
+ * Asset & Life Studio — Cloudflare Workers configuration
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * Local development works out of the box. Before deploying:
+ *   npx wrangler d1 create my-capital-db
+ *   npx wrangler r2 bucket create my-capital-gear
+ * then replace database_id below with the value printed by wrangler.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-capital",
+  "compatibility_date": "2026-10-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "my-capital-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "GEAR_IMAGES",
+      "bucket_name": "my-capital-gear"
+    }
+  ]
+  /**
+   * Optional: set an access passcode for the deployed app.
+   *   npx wrangler secret put APP_PASSCODE
+   * When unset, the app runs without a login screen (single-user / local mode).
+   */
+  // "vars": { "APP_PASSCODE": "" }
+}

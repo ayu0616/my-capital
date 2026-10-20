@@ -1,0 +1,467 @@
+import type {
+  AppSettings,
+  AssetSnapshot,
+  CameraGear,
+  CareerEvent,
+  HoldingStockStatus,
+  SelfInvestment,
+} from '../db/schema'
+import {
+  addMonths,
+  addYears,
+  clamp,
+  currentYearMonth,
+  formatMonthEta,
+  monthsBetween,
+  todayDateOnly,
+} from './format'
+
+/* -------------------------------------------------------------------------- */
+/*  Shared types & palette                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const ALLOCATION_COLORS = {
+  orkan: '#1E5B45',
+  sp500: '#5B9C82',
+  fujitsu: '#C1913F',
+  cash: '#AEB6AD',
+  gear: '#7A6550',
+} as const
+
+export const INVESTMENT_CATEGORY_COLORS = {
+  cert: '#1E5B45',
+  udemy: '#5B9C82',
+  book: '#C1913F',
+  other: '#A8AFA8',
+} as const
+
+export const INVESTMENT_CATEGORY_LABELS: Record<string, string> = {
+  cert: '資格・認定',
+  udemy: 'Udemy・講座',
+  book: '書籍',
+  other: 'その他',
+}
+
+export const GEAR_CATEGORY_LABELS: Record<string, string> = {
+  body: 'カメラボディ',
+  lens: 'レンズ',
+  accessory: 'アクセサリー',
+}
+
+export function categoryLabel(category: string): string {
+  return INVESTMENT_CATEGORY_LABELS[category] ?? 'その他'
+}
+
+export function gearCategoryLabel(category: string): string {
+  return GEAR_CATEGORY_LABELS[category] ?? 'アクセサリー'
+}
+
+const safe = (value: number | null | undefined): number =>
+  Number.isFinite(value) ? Number(value) : 0
+
+/* -------------------------------------------------------------------------- */
+/*  Snapshot totals & series                                                   */
+/* -------------------------------------------------------------------------- */
+
+export function snapshotTotal(snapshot: AssetSnapshot): number {
+  const fujitsuShares =
+    safe(snapshot.holdingStockShares) + safe(snapshot.fujitsuRomanStockShares)
+  return (
+    safe(snapshot.cashAmount) +
+    safe(snapshot.nisaOrkanAmount) +
+    safe(snapshot.nisaSp500Amount) +
+    fujitsuShares * safe(snapshot.fujitsuCurrentPrice) +
+    safe(snapshot.gearResaleAmount)
+  )
+}
+
+export function snapshotFinancialTotal(snapshot: AssetSnapshot): number {
+  return snapshotTotal(snapshot) - safe(snapshot.gearResaleAmount)
+}
+
+export interface MonthlyPoint {
+  yearMonth: string
+  label: string
+  shortLabel: string
+  total: number
+  financial: number
+  gear: number
+  invested: number
+  cash: number
+  fujitsu: number
+}
+
+export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
+  return [...snapshots]
+    .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
+    .map((snapshot) => {
+      const fujitsu =
+        (safe(snapshot.holdingStockShares) +
+          safe(snapshot.fujitsuRomanStockShares)) *
+        safe(snapshot.fujitsuCurrentPrice)
+      const invested =
+        safe(snapshot.nisaOrkanAmount) +
+        safe(snapshot.nisaSp500Amount) +
+        fujitsu
+      return {
+        yearMonth: snapshot.yearMonth,
+        label: `${snapshot.yearMonth.slice(0, 4)}年${Number(snapshot.yearMonth.slice(5))}月`,
+        shortLabel: `${Number(snapshot.yearMonth.slice(5))}月`,
+        total: snapshotTotal(snapshot),
+        financial: snapshotFinancialTotal(snapshot),
+        gear: safe(snapshot.gearResaleAmount),
+        invested,
+        cash: safe(snapshot.cashAmount),
+        fujitsu,
+      }
+    })
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Current portfolio                                                          */
+/* -------------------------------------------------------------------------- */
+
+export interface PortfolioSlice {
+  key: 'orkan' | 'sp500' | 'fujitsu' | 'cash' | 'gear'
+  label: string
+  amount: number
+  ratio: number
+  color: string
+}
+
+export interface Portfolio {
+  total: number
+  financialTotal: number
+  gearValue: number
+  slices: PortfolioSlice[]
+  fujitsuValue: number
+  fujitsuShares: number
+  fujitsuPrice: number
+  fujitsuRatio: number
+  isFujitsuOverLimit: boolean
+  threshold: number
+}
+
+function buildPortfolio(params: {
+  cash: number
+  orkan: number
+  sp500: number
+  fujitsuShares: number
+  fujitsuPrice: number
+  gear: number
+  threshold: number
+}): Portfolio {
+  const fujitsuValue = params.fujitsuShares * params.fujitsuPrice
+  const amounts = {
+    orkan: safe(params.orkan),
+    sp500: safe(params.sp500),
+    fujitsu: safe(fujitsuValue),
+    cash: safe(params.cash),
+    gear: safe(params.gear),
+  }
+  const total = Object.values(amounts).reduce((sum, value) => sum + value, 0)
+  const ratioOf = (value: number) => (total > 0 ? value / total : 0)
+  const slices: PortfolioSlice[] = [
+    { key: 'orkan', label: 'オルカン', amount: amounts.orkan, ratio: ratioOf(amounts.orkan), color: ALLOCATION_COLORS.orkan },
+    { key: 'sp500', label: 'S&P 500', amount: amounts.sp500, ratio: ratioOf(amounts.sp500), color: ALLOCATION_COLORS.sp500 },
+    { key: 'fujitsu', label: '富士通（ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
+    { key: 'cash', label: '現預金', amount: amounts.cash, ratio: ratioOf(amounts.cash), color: ALLOCATION_COLORS.cash },
+    { key: 'gear', label: 'カメラ機材', amount: amounts.gear, ratio: ratioOf(amounts.gear), color: ALLOCATION_COLORS.gear },
+  ]
+  const financialTotal =
+    amounts.orkan + amounts.sp500 + amounts.fujitsu + amounts.cash
+  return {
+    total,
+    financialTotal,
+    gearValue: amounts.gear,
+    slices,
+    fujitsuValue: amounts.fujitsu,
+    fujitsuShares: params.fujitsuShares,
+    fujitsuPrice: params.fujitsuPrice,
+    fujitsuRatio: ratioOf(amounts.fujitsu),
+    isFujitsuOverLimit: ratioOf(amounts.fujitsu) > params.threshold,
+    threshold: params.threshold,
+  }
+}
+
+export function buildCurrentPortfolio(
+  latest: AssetSnapshot | null | undefined,
+  holding: HoldingStockStatus,
+  gearValue: number,
+  threshold = 0.15,
+): Portfolio {
+  return buildPortfolio({
+    cash: safe(latest?.cashAmount),
+    orkan: safe(latest?.nisaOrkanAmount),
+    sp500: safe(latest?.nisaSp500Amount),
+    fujitsuShares:
+      safe(holding.currentAccumulatedShares) +
+      safe(latest?.fujitsuRomanStockShares),
+    fujitsuPrice: safe(holding.latestStockPrice) || safe(latest?.fujitsuCurrentPrice),
+    gear: gearValue,
+    threshold,
+  })
+}
+
+export function buildSnapshotPortfolio(
+  snapshot: AssetSnapshot,
+  threshold = 0.15,
+): Portfolio {
+  return buildPortfolio({
+    cash: safe(snapshot.cashAmount),
+    orkan: safe(snapshot.nisaOrkanAmount),
+    sp500: safe(snapshot.nisaSp500Amount),
+    fujitsuShares:
+      safe(snapshot.holdingStockShares) + safe(snapshot.fujitsuRomanStockShares),
+    fujitsuPrice: safe(snapshot.fujitsuCurrentPrice),
+    gear: safe(snapshot.gearResaleAmount),
+    threshold,
+  })
+}
+
+export interface NetWorthTrend {
+  amount: number
+  delta: number | null
+  deltaRatio: number | null
+}
+
+export function buildNetWorthTrend(
+  currentTotal: number,
+  previousTotal: number | null | undefined,
+): NetWorthTrend {
+  if (previousTotal == null || previousTotal <= 0) {
+    return { amount: currentTotal, delta: null, deltaRatio: null }
+  }
+  return {
+    amount: currentTotal,
+    delta: currentTotal - previousTotal,
+    deltaRatio: previousTotal > 0 ? (currentTotal - previousTotal) / previousTotal : null,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  NISA plan                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface NisaPlan {
+  principal: number
+  targetAmount: number
+  remaining: number
+  progress: number
+  targetAge: number
+  targetDate: Date
+  monthsLeft: number
+  requiredMonthly: number
+  isComplete: boolean
+  age: number
+}
+
+export function buildNisaPlan(
+  settings: AppSettings,
+  principal: number,
+  today = todayDateOnly(),
+): NisaPlan {
+  const targetAmount = Math.max(1, safe(settings.nisaTargetAmount))
+  const birthDate = parseBirthDate(settings.birthDate, today)
+  const targetDate = addYears(birthDate, Math.max(1, safe(settings.nisaTargetAge)))
+  const monthsLeft = Math.max(0, monthsBetween(today, targetDate))
+  const safePrincipal = clamp(safe(principal), 0, Number.MAX_SAFE_INTEGER)
+  const remaining = Math.max(0, targetAmount - safePrincipal)
+  return {
+    principal: safePrincipal,
+    targetAmount,
+    remaining,
+    progress: clamp(safePrincipal / targetAmount, 0, 1),
+    targetAge: safe(settings.nisaTargetAge),
+    targetDate,
+    monthsLeft,
+    requiredMonthly: remaining > 0 ? remaining / Math.max(1, monthsLeft) : 0,
+    isComplete: remaining <= 0,
+    age: Math.floor(monthsBetween(birthDate, today) / 12),
+  }
+}
+
+function parseBirthDate(value: string, fallback: Date): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+  if (!match) return addYears(fallback, -30)
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12))
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Employee holding plan (Fujitsu)                                            */
+/* -------------------------------------------------------------------------- */
+
+export interface HoldingPlan {
+  currentShares: number
+  targetShares: number
+  price: number
+  monthlyContribution: number
+  incentiveRate: number
+  monthlyPurchaseAmount: number
+  monthlyShares: number
+  remainingShares: number
+  progress: number
+  monthsToTarget: number | null
+  etaDate: Date | null
+  etaLabel: string | null
+  value: number
+  isComplete: boolean
+  predictedShares: number
+}
+
+export function buildHoldingPlan(
+  holding: HoldingStockStatus,
+  today = todayDateOnly(),
+): HoldingPlan {
+  const currentShares = Math.max(0, safe(holding.currentAccumulatedShares))
+  const targetShares = Math.max(1, safe(holding.targetShares) || 100)
+  const price = Math.max(0, safe(holding.latestStockPrice))
+  const incentiveRate = Math.max(0, safe(holding.companyIncentiveRate))
+  const monthlyContribution = Math.max(0, safe(holding.monthlyContribution))
+  const monthlyPurchaseAmount = monthlyContribution * (1 + incentiveRate)
+  const monthlyShares = price > 0 ? monthlyPurchaseAmount / price : 0
+  const remainingShares = Math.max(0, targetShares - currentShares)
+  const monthsToTarget =
+    remainingShares <= 0 ? 0 : monthlyShares > 0 ? remainingShares / monthlyShares : null
+  const etaDate =
+    monthsToTarget == null ? null : addMonths(today, Math.ceil(monthsToTarget))
+  return {
+    currentShares,
+    targetShares,
+    price,
+    monthlyContribution,
+    incentiveRate,
+    monthlyPurchaseAmount,
+    monthlyShares,
+    remainingShares,
+    progress: clamp(currentShares / targetShares, 0, 1),
+    monthsToTarget,
+    etaDate,
+    etaLabel: etaDate && remainingShares > 0 ? formatMonthEta(etaDate) : null,
+    value: currentShares * price,
+    isComplete: remainingShares <= 0,
+    predictedShares: Math.min(targetShares, currentShares + monthlyShares),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Gear ledger                                                                */
+/* -------------------------------------------------------------------------- */
+
+export interface GearSummary {
+  count: number
+  purchaseTotal: number
+  resaleTotal: number
+  gain: number
+  retentionRate: number
+  byCategory: {
+    key: string
+    label: string
+    count: number
+    purchase: number
+    resale: number
+  }[]
+}
+
+export function buildGearSummary(gears: CameraGear[]): GearSummary {
+  const purchaseTotal = gears.reduce((sum, gear) => sum + safe(gear.purchasePrice), 0)
+  const resaleTotal = gears.reduce((sum, gear) => sum + safe(gear.resaleValue), 0)
+  const categories = ['body', 'lens', 'accessory']
+  return {
+    count: gears.length,
+    purchaseTotal,
+    resaleTotal,
+    gain: resaleTotal - purchaseTotal,
+    retentionRate: purchaseTotal > 0 ? resaleTotal / purchaseTotal : 0,
+    byCategory: categories.map((key) => {
+      const items = gears.filter((gear) => gear.category === key)
+      return {
+        key,
+        label: gearCategoryLabel(key),
+        count: items.length,
+        purchase: items.reduce((sum, gear) => sum + safe(gear.purchasePrice), 0),
+        resale: items.reduce((sum, gear) => sum + safe(gear.resaleValue), 0),
+      }
+    }),
+  }
+}
+
+export function buildLensFund(settings: AppSettings) {
+  const target = Math.max(1, safe(settings.gearFundTarget))
+  const saved = Math.max(0, safe(settings.gearFundSaved))
+  return {
+    target,
+    saved,
+    remaining: Math.max(0, target - saved),
+    progress: clamp(saved / target, 0, 1),
+    isComplete: saved >= target,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Human capital                                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface HumanCapitalSummary {
+  totalCost: number
+  annualGain: number
+  roi: number | null
+  paybackMonths: number | null
+  monthlyGain: number
+  count: number
+  byCategory: {
+    key: string
+    label: string
+    amount: number
+    ratio: number
+    count: number
+    color: string
+  }[]
+}
+
+export function buildHumanCapital(
+  investments: SelfInvestment[],
+  careerEvents: CareerEvent[],
+): HumanCapitalSummary {
+  const totalCost = investments.reduce((sum, item) => sum + safe(item.cost), 0)
+  const annualGain = careerEvents.reduce(
+    (sum, event) => sum + safe(event.annualIncomeIncrease),
+    0,
+  )
+  const categories = ['cert', 'udemy', 'book', 'other']
+  return {
+    totalCost,
+    annualGain,
+    roi: totalCost > 0 ? annualGain / totalCost : null,
+    paybackMonths: annualGain > 0 ? (totalCost / annualGain) * 12 : null,
+    monthlyGain: annualGain / 12,
+    count: investments.length,
+    byCategory: categories.map((key) => {
+      const items = investments.filter((item) => item.category === key)
+      const amount = items.reduce((sum, item) => sum + safe(item.cost), 0)
+      return {
+        key,
+        label: categoryLabel(key),
+        amount,
+        ratio: totalCost > 0 ? amount / totalCost : 0,
+        count: items.length,
+        color:
+          INVESTMENT_CATEGORY_COLORS[
+            key as keyof typeof INVESTMENT_CATEGORY_COLORS
+          ],
+      }
+    }),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Misc                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export function defaultSnapshotYearMonth(): string {
+  return currentYearMonth()
+}
+
+export function progressLabel(ratio: number): string {
+  return `${(clamp(ratio, 0, 1) * 100).toFixed(1)}%`
+}
