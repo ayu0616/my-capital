@@ -24,6 +24,7 @@ export const ALLOCATION_COLORS = {
   orkan: '#1E5B45',
   sp500: '#5B9C82',
   fujitsu: '#C1913F',
+  carryover: '#D8C7A3',
   cash: '#AEB6AD',
   gear: '#7A6550',
 } as const
@@ -71,6 +72,7 @@ export function snapshotTotal(snapshot: AssetSnapshot): number {
     safe(snapshot.nisaOrkanAmount) +
     safe(snapshot.nisaSp500Amount) +
     fujitsuShares * safe(snapshot.fujitsuCurrentPrice) +
+    safe(snapshot.holdingCarryoverAmount) +
     safe(snapshot.gearResaleAmount)
   )
 }
@@ -122,7 +124,7 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
 /* -------------------------------------------------------------------------- */
 
 export interface PortfolioSlice {
-  key: 'orkan' | 'sp500' | 'fujitsu' | 'cash' | 'gear'
+  key: 'orkan' | 'sp500' | 'fujitsu' | 'carryover' | 'cash' | 'gear'
   label: string
   amount: number
   ratio: number
@@ -148,6 +150,7 @@ function buildPortfolio(params: {
   sp500: number
   fujitsuShares: number
   fujitsuPrice: number
+  carryover: number
   gear: number
   threshold: number
 }): Portfolio {
@@ -156,6 +159,7 @@ function buildPortfolio(params: {
     orkan: safe(params.orkan),
     sp500: safe(params.sp500),
     fujitsu: safe(fujitsuValue),
+    carryover: safe(params.carryover),
     cash: safe(params.cash),
     gear: safe(params.gear),
   }
@@ -164,12 +168,17 @@ function buildPortfolio(params: {
   const slices: PortfolioSlice[] = [
     { key: 'orkan', label: 'オルカン', amount: amounts.orkan, ratio: ratioOf(amounts.orkan), color: ALLOCATION_COLORS.orkan },
     { key: 'sp500', label: 'S&P 500', amount: amounts.sp500, ratio: ratioOf(amounts.sp500), color: ALLOCATION_COLORS.sp500 },
-    { key: 'fujitsu', label: '富士通（ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
+    { key: 'fujitsu', label: '富士通（持株会＋ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
+    { key: 'carryover', label: '持株会の繰越金', amount: amounts.carryover, ratio: ratioOf(amounts.carryover), color: ALLOCATION_COLORS.carryover },
     { key: 'cash', label: '現預金', amount: amounts.cash, ratio: ratioOf(amounts.cash), color: ALLOCATION_COLORS.cash },
     { key: 'gear', label: 'カメラ機材', amount: amounts.gear, ratio: ratioOf(amounts.gear), color: ALLOCATION_COLORS.gear },
   ]
   const financialTotal =
-    amounts.orkan + amounts.sp500 + amounts.fujitsu + amounts.cash
+    amounts.orkan +
+    amounts.sp500 +
+    amounts.fujitsu +
+    amounts.carryover +
+    amounts.cash
   return {
     total,
     financialTotal,
@@ -198,6 +207,7 @@ export function buildCurrentPortfolio(
       safe(holding.currentAccumulatedShares) +
       safe(latest?.fujitsuRomanStockShares),
     fujitsuPrice: safe(holding.latestStockPrice) || safe(latest?.fujitsuCurrentPrice),
+    carryover: safe(holding.carryoverAmount),
     gear: gearValue,
     threshold,
   })
@@ -214,6 +224,7 @@ export function buildSnapshotPortfolio(
     fujitsuShares:
       safe(snapshot.holdingStockShares) + safe(snapshot.fujitsuRomanStockShares),
     fujitsuPrice: safe(snapshot.fujitsuCurrentPrice),
+    carryover: safe(snapshot.holdingCarryoverAmount),
     gear: safe(snapshot.gearResaleAmount),
     threshold,
   })
@@ -305,6 +316,12 @@ export interface HoldingPlan {
   etaDate: Date | null
   etaLabel: string | null
   value: number
+  recordedAt: string
+  averageAcquisitionPrice: number
+  costBasis: number | null
+  unrealizedGain: number | null
+  unrealizedGainRatio: number | null
+  carryoverAmount: number
   isComplete: boolean
   predictedShares: number
 }
@@ -325,6 +342,17 @@ export function buildHoldingPlan(
     remainingShares <= 0 ? 0 : monthlyShares > 0 ? remainingShares / monthlyShares : null
   const etaDate =
     monthsToTarget == null ? null : addMonths(today, Math.ceil(monthsToTarget))
+  const averageAcquisitionPrice = Math.max(0, safe(holding.averageAcquisitionPrice))
+  const carryoverAmount = Math.max(0, safe(holding.carryoverAmount))
+  const costBasis =
+    averageAcquisitionPrice > 0 ? currentShares * averageAcquisitionPrice : null
+  const unrealizedGain =
+    costBasis != null && price > 0 ? currentShares * (price - averageAcquisitionPrice) : null
+  const unrealizedGainRatio =
+    costBasis != null && costBasis > 0 && price > 0
+      ? (price - averageAcquisitionPrice) / averageAcquisitionPrice
+      : null
+  const value = currentShares * price
   return {
     currentShares,
     targetShares,
@@ -338,7 +366,13 @@ export function buildHoldingPlan(
     monthsToTarget,
     etaDate,
     etaLabel: etaDate && remainingShares > 0 ? formatMonthEta(etaDate) : null,
-    value: currentShares * price,
+    value,
+    recordedAt: holding.recordedAt,
+    averageAcquisitionPrice,
+    costBasis,
+    unrealizedGain,
+    unrealizedGainRatio,
+    carryoverAmount,
     isComplete: remainingShares <= 0,
     predictedShares: Math.min(targetShares, currentShares + monthlyShares),
   }

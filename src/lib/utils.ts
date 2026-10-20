@@ -12,6 +12,6 @@ export function parseYenInput(value: string): number {
 }
 
 export function parseNumberInput(value: string): number {
-  const parsed = Number(value)
+  const parsed = Number(value.replace(/,/g, '').trim())
   return Number.isFinite(parsed) ? parsed : 0
 }

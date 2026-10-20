@@ -25,6 +25,8 @@ type SnapshotFormValues = {
   nisaContributedPrincipal: string
   fujitsuRomanStockShares: string
   holdingStockShares: string
+  holdingAverageAcquisitionPrice: string
+  holdingCarryoverAmount: string
   fujitsuCurrentPrice: string
   gearResaleAmount: string
   notes: string
@@ -39,6 +41,10 @@ function valuesFromSnapshot(snapshot: AssetSnapshot): SnapshotFormValues {
     nisaContributedPrincipal: String(snapshot.nisaContributedPrincipal),
     fujitsuRomanStockShares: String(snapshot.fujitsuRomanStockShares),
     holdingStockShares: String(snapshot.holdingStockShares),
+    holdingAverageAcquisitionPrice: String(
+      snapshot.holdingAverageAcquisitionPrice || '',
+    ),
+    holdingCarryoverAmount: String(snapshot.holdingCarryoverAmount),
     fujitsuCurrentPrice: String(snapshot.fujitsuCurrentPrice),
     gearResaleAmount: String(snapshot.gearResaleAmount),
     notes: snapshot.notes ?? '',
@@ -63,6 +69,10 @@ function newValues(
       ? String(latest.fujitsuRomanStockShares)
       : '0',
     holdingStockShares: String(holding.currentAccumulatedShares || 0),
+    holdingAverageAcquisitionPrice: String(
+      holding.averageAcquisitionPrice || '',
+    ),
+    holdingCarryoverAmount: String(holding.carryoverAmount || 0),
     fujitsuCurrentPrice: String(holding.latestStockPrice || 0),
     gearResaleAmount: String(gearResaleTotal || 0),
     notes: '',
@@ -130,8 +140,9 @@ export function SnapshotDialog({
       parseNumberInput(form.fujitsuRomanStockShares) +
       parseNumberInput(form.holdingStockShares)
     const price = parseNumberInput(form.fujitsuCurrentPrice)
+    const carryover = parseYenInput(form.holdingCarryoverAmount)
     const gear = parseYenInput(form.gearResaleAmount)
-    return cash + orkan + sp500 + shares * price + gear
+    return cash + orkan + sp500 + shares * price + carryover + gear
   }, [form])
 
   function update<K extends keyof SnapshotFormValues>(
@@ -164,6 +175,10 @@ export function SnapshotDialog({
             form.fujitsuRomanStockShares,
           ),
           holdingStockShares: parseNumberInput(form.holdingStockShares),
+          holdingAverageAcquisitionPrice: parseNumberInput(
+            form.holdingAverageAcquisitionPrice,
+          ),
+          holdingCarryoverAmount: parseYenInput(form.holdingCarryoverAmount),
           fujitsuCurrentPrice: parseNumberInput(form.fujitsuCurrentPrice),
           gearResaleAmount: parseYenInput(form.gearResaleAmount),
           notes: form.notes.trim() || null,
@@ -348,6 +363,35 @@ export function SnapshotDialog({
                 onChange={(event) =>
                   update('holdingStockShares', event.target.value)
                 }
+              />
+            </Field>
+            <Field
+              label="平均取得単価"
+              htmlFor="snap-holding-average"
+              hint="会社ページの「平均取得単価」を記録します。"
+            >
+              <MoneyInput
+                id="snap-holding-average"
+                inputMode="decimal"
+                value={form.holdingAverageAcquisitionPrice}
+                onChange={(event) =>
+                  update('holdingAverageAcquisitionPrice', event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field
+              label="繰越金"
+              htmlFor="snap-holding-carryover"
+              hint="次回の購入に充当される持株会内の現金。"
+            >
+              <MoneyInput
+                id="snap-holding-carryover"
+                value={form.holdingCarryoverAmount}
+                onChange={(event) =>
+                  update('holdingCarryoverAmount', event.target.value)
+                }
+                placeholder="0"
               />
             </Field>
           </FieldGrid>

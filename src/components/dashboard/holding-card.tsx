@@ -2,9 +2,11 @@ import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, PartyPopper, Sparkles } from 'lucide-react'
 import type { HoldingPlan } from '../../lib/finance'
 import {
+  formatDateJa,
   formatNumber,
   formatPercent,
   formatShares,
+  formatSignedPercent,
   formatYen,
 } from '../../lib/format'
 import { cn } from '../../lib/utils'
@@ -72,9 +74,64 @@ export function HoldingCard({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[0.6rem] font-medium text-muted">現在の評価額</p>
+            <p className="text-[0.6rem] font-medium text-muted">株式の評価額</p>
             <p className="mt-1 text-[0.95rem] font-bold text-ink tabular">
               {formatYen(plan.value)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-line/80 bg-line/70">
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="text-[0.5rem] leading-tight text-muted">平均取得単価</p>
+            <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
+              {plan.averageAcquisitionPrice > 0
+                ? formatYen(plan.averageAcquisitionPrice)
+                : '—'}
+            </p>
+          </div>
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="text-[0.5rem] leading-tight text-muted">評価損益</p>
+            <p
+              className={cn(
+                'mt-1 text-[0.7rem] font-bold tabular',
+                plan.unrealizedGain != null && plan.unrealizedGain < 0
+                  ? 'text-danger'
+                  : 'text-ink',
+              )}
+            >
+              {plan.unrealizedGain == null
+                ? '—'
+                : formatYen(plan.unrealizedGain, { sign: true })}
+            </p>
+            {plan.unrealizedGainRatio != null ? (
+              <p className="mt-0.5 text-[0.48rem] text-muted tabular">
+                {formatSignedPercent(plan.unrealizedGainRatio)}
+              </p>
+            ) : null}
+          </div>
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="text-[0.5rem] leading-tight text-muted">繰越金</p>
+            <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
+              {formatYen(plan.carryoverAmount)}
+            </p>
+          </div>
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="text-[0.5rem] leading-tight text-muted">毎月の購入</p>
+            <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
+              {formatNumber(plan.monthlyShares, 1)}株
+            </p>
+          </div>
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="text-[0.5rem] leading-tight text-muted">月の購入額</p>
+            <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
+              {formatYen(plan.monthlyPurchaseAmount)}
+            </p>
+          </div>
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="text-[0.5rem] leading-tight text-muted">到達予定</p>
+            <p className="mt-1 text-[0.7rem] font-bold text-ink">
+              {plan.etaLabel ?? '—'}
             </p>
           </div>
         </div>
@@ -103,37 +160,25 @@ export function HoldingCard({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 divide-x divide-line/70 rounded-xl border border-line/80 bg-canvas/35 py-3">
-          <div className="px-3">
-            <p className="text-[0.52rem] leading-tight text-muted">毎月の購入</p>
-            <p className="mt-1 text-[0.76rem] font-bold text-ink tabular">
-              {formatNumber(plan.monthlyShares, 1)}株
-            </p>
-          </div>
-          <div className="px-3">
-            <p className="text-[0.52rem] leading-tight text-muted">月の購入額</p>
-            <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
-              {formatYen(plan.monthlyPurchaseAmount)}
-            </p>
-          </div>
-          <div className="px-3">
-            <p className="text-[0.52rem] leading-tight text-muted">到達予定</p>
-            <p className="mt-1 text-[0.7rem] font-bold text-ink">
-              {plan.etaLabel ?? '—'}
-            </p>
-          </div>
-        </div>
-
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4 text-[0.58rem] text-muted">
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex flex-wrap items-center gap-x-1 gap-y-0.5">
             <Sparkles className="size-3 text-gold" />
-            奨励金 {formatPercent(plan.incentiveRate, 0)} 込み・株価 {formatYen(plan.price)}
+            {plan.recordedAt ? (
+              <span>記録日 {formatDateJa(plan.recordedAt)}</span>
+            ) : (
+              <span>会社ページ未記録</span>
+            )}
+            <span aria-hidden="true">・</span>
+            <span>
+              奨励金 {formatPercent(plan.incentiveRate, 0)} 込み・株価{' '}
+              {formatYen(plan.price)}
+            </span>
           </span>
           <Link
             to="/settings"
             className="font-semibold text-brand underline decoration-brand/25 underline-offset-2 hover:text-brand-strong"
           >
-            株価と拠出額を更新
+            持株会の記録を更新
           </Link>
         </div>
       </CardContent>

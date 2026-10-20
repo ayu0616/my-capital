@@ -149,7 +149,7 @@ function AssetsPage() {
           value={formatYen(portfolio.financialTotal)}
           icon={Landmark}
           tone="ink"
-          hint="現預金＋投資信託＋富士通"
+          hint="現預金＋投資信託＋富士通＋繰越金"
         />
         <MetricCard
           label="NISA累計元本"
@@ -254,6 +254,11 @@ function AssetsPage() {
                           </td>
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
                             {fujitsuShares.toFixed(1)}株
+                            {snapshot.holdingCarryoverAmount > 0 ? (
+                              <span className="mt-0.5 block text-[0.52rem] text-muted/80">
+                                繰越 {formatYen(snapshot.holdingCarryoverAmount)}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
                             {formatYen(snapshot.gearResaleAmount)}
@@ -314,6 +319,11 @@ function AssetsPage() {
                         <span className="rounded-full bg-canvas/70 px-2 py-0.5">
                           投資 {formatYen(snapshot.nisaOrkanAmount + snapshot.nisaSp500Amount)}
                         </span>
+                        {snapshot.holdingCarryoverAmount > 0 ? (
+                          <span className="rounded-full bg-canvas/70 px-2 py-0.5">
+                            繰越 {formatYen(snapshot.holdingCarryoverAmount)}
+                          </span>
+                        ) : null}
                         <span className="rounded-full bg-canvas/70 px-2 py-0.5">
                           機材 {formatYen(snapshot.gearResaleAmount)}
                         </span>

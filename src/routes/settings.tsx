@@ -30,8 +30,12 @@ import type { AppSettings, HoldingStockStatus } from '../db/schema'
 import {
   formatMonthEta,
   formatPercent,
+  formatSignedPercent,
+  formatYen,
   addYears,
   parseDateOnly,
+  toDateOnlyString,
+  todayDateOnly,
 } from '../lib/format'
 import { parseNumberInput, parseYenInput } from '../lib/utils'
 import { updateHolding, updateSettings } from '../server/actions'
@@ -298,6 +302,9 @@ function HoldingForm({
   onSaved: () => void
   className?: string
 }) {
+  const [recordedAt, setRecordedAt] = useState(
+    holding.recordedAt || toDateOnlyString(todayDateOnly()),
+  )
   const [monthlyContribution, setMonthlyContribution] = useState(
     String(holding.monthlyContribution),
   )
@@ -305,6 +312,10 @@ function HoldingForm({
     String(holding.companyIncentiveRate * 100),
   )
   const [shares, setShares] = useState(String(holding.currentAccumulatedShares))
+  const [averagePrice, setAveragePrice] = useState(
+    holding.averageAcquisitionPrice ? String(holding.averageAcquisitionPrice) : '',
+  )
+  const [carryover, setCarryover] = useState(String(holding.carryoverAmount))
   const [price, setPrice] = useState(String(holding.latestStockPrice))
   const [targetShares, setTargetShares] = useState(String(holding.targetShares))
   const [pending, setPending] = useState(false)
@@ -315,6 +326,18 @@ function HoldingForm({
   const currentShares = Math.max(0, parseNumberInput(shares))
   const stockPrice = Math.max(0, parseNumberInput(price))
   const target = Math.max(1, parseNumberInput(targetShares))
+  const averageAcquisitionPrice = Math.max(0, parseNumberInput(averagePrice))
+  const carryoverAmount = parseYenInput(carryover)
+  const costBasis =
+    averageAcquisitionPrice > 0 ? currentShares * averageAcquisitionPrice : null
+  const unrealizedGain =
+    costBasis != null && stockPrice > 0
+      ? currentShares * (stockPrice - averageAcquisitionPrice)
+      : null
+  const unrealizedGainRatio =
+    costBasis != null && costBasis > 0 && stockPrice > 0
+      ? (stockPrice - averageAcquisitionPrice) / averageAcquisitionPrice
+      : null
   const monthlyPurchase = contribution * (1 + incentive)
   const monthlyShares = stockPrice > 0 ? monthlyPurchase / stockPrice : 0
   const remaining = Math.max(0, target - currentShares)
@@ -333,6 +356,9 @@ function HoldingForm({
           currentAccumulatedShares: currentShares,
           latestStockPrice: stockPrice,
           targetShares: Math.round(target),
+          recordedAt,
+          averageAcquisitionPrice,
+          carryoverAmount,
         },
       })
       toast.success('持株会の設定を更新しました')
@@ -353,62 +379,143 @@ function HoldingForm({
           <CardKicker>Employee holding</CardKicker>
           <CardTitle className="mt-1.5">富士通・持株会</CardTitle>
           <CardDescription>
-            月次拠出・奨励金・株価から、100株までの到達時期を試算します。
+            会社ページの記録と、100株までの積立プランを管理します。
           </CardDescription>
         </div>
         <Badge variant="gold">{formatPercent(progress)}</Badge>
       </CardHeader>
       <CardContent>
-        <form onSubmit={save} className="space-y-4">
-          <FieldGrid>
-            <Field label="月次拠出額" htmlFor="hold-contribution">
-              <MoneyInput
-                id="hold-contribution"
-                value={monthlyContribution}
-                onChange={(event) => setMonthlyContribution(event.target.value)}
-              />
-            </Field>
-            <Field label="奨励金率" htmlFor="hold-incentive">
-              <div className="relative">
+        <form onSubmit={save} className="space-y-5">
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <Landmark className="size-3.5 text-brand" />
+              <p className="text-[0.7rem] font-bold text-ink">会社ページの記録</p>
+            </div>
+            <FieldGrid>
+              <Field
+                label="記録日"
+                htmlFor="hold-recorded-at"
+                hint="会社ページに表示されている基準日。"
+              >
                 <Input
-                  id="hold-incentive"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={incentivePercent}
-                  onChange={(event) => setIncentivePercent(event.target.value)}
-                  className="pr-8"
+                  id="hold-recorded-at"
+                  type="date"
+                  value={recordedAt}
+                  onChange={(event) => setRecordedAt(event.target.value)}
+                  required
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.68rem] text-muted">
-                  %
-                </span>
+              </Field>
+              <Field label="持分株数" htmlFor="hold-shares">
+                <Input
+                  id="hold-shares"
+                  inputMode="decimal"
+                  value={shares}
+                  onChange={(event) => setShares(event.target.value)}
+                />
+              </Field>
+              <Field label="平均取得単価" htmlFor="hold-average">
+                <MoneyInput
+                  id="hold-average"
+                  inputMode="decimal"
+                  value={averagePrice}
+                  onChange={(event) => setAveragePrice(event.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Field
+                label="繰越金"
+                htmlFor="hold-carryover"
+                hint="持株会内に残っている、次回購入へ繰り越す現金。"
+              >
+                <MoneyInput
+                  id="hold-carryover"
+                  value={carryover}
+                  onChange={(event) => setCarryover(event.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+            </FieldGrid>
+
+            <div className="mt-3 grid grid-cols-2 divide-x divide-line/70 rounded-xl border border-brand/10 bg-brand-soft/45 py-3">
+              <div className="px-3">
+                <p className="text-[0.52rem] text-brand-ink/60">取得原価</p>
+                <p className="mt-1 text-[0.74rem] font-bold text-brand-ink tabular">
+                  {costBasis == null ? '—' : formatYen(costBasis)}
+                </p>
               </div>
-            </Field>
-            <Field label="現在の保有株数" htmlFor="hold-shares">
-              <Input
-                id="hold-shares"
-                inputMode="decimal"
-                value={shares}
-                onChange={(event) => setShares(event.target.value)}
-              />
-            </Field>
-            <Field label="最新の株価" htmlFor="hold-price">
-              <MoneyInput
-                id="hold-price"
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-              />
-            </Field>
-            <Field label="目標株数（単元）" htmlFor="hold-target">
-              <Input
-                id="hold-target"
-                inputMode="numeric"
-                value={targetShares}
-                onChange={(event) => setTargetShares(event.target.value)}
-              />
-            </Field>
-          </FieldGrid>
+              <div className="px-3">
+                <p className="text-[0.52rem] text-brand-ink/60">評価損益</p>
+                <p
+                  className={
+                    unrealizedGain != null && unrealizedGain < 0
+                      ? 'mt-1 text-[0.74rem] font-bold text-danger tabular'
+                      : 'mt-1 text-[0.74rem] font-bold text-brand-ink tabular'
+                  }
+                >
+                  {unrealizedGain == null
+                    ? '—'
+                    : formatYen(unrealizedGain, { sign: true })}
+                  {unrealizedGainRatio != null ? (
+                    <span className="ml-1 text-[0.56rem] font-medium opacity-65">
+                      {formatSignedPercent(unrealizedGainRatio)}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <Sparkles className="size-3.5 text-gold" />
+              <p className="text-[0.7rem] font-bold text-ink">積立プラン</p>
+            </div>
+            <FieldGrid>
+              <Field label="月次拠出額" htmlFor="hold-contribution">
+                <MoneyInput
+                  id="hold-contribution"
+                  value={monthlyContribution}
+                  onChange={(event) => setMonthlyContribution(event.target.value)}
+                />
+              </Field>
+              <Field label="奨励金率" htmlFor="hold-incentive">
+                <div className="relative">
+                  <Input
+                    id="hold-incentive"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={incentivePercent}
+                    onChange={(event) => setIncentivePercent(event.target.value)}
+                    className="pr-8"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.68rem] text-muted">
+                    %
+                  </span>
+                </div>
+              </Field>
+              <Field label="目標株数（単元）" htmlFor="hold-target">
+                <Input
+                  id="hold-target"
+                  inputMode="numeric"
+                  value={targetShares}
+                  onChange={(event) => setTargetShares(event.target.value)}
+                />
+              </Field>
+              <Field
+                label="現在の株価"
+                htmlFor="hold-price"
+                hint="評価額と到達時期の計算に使います。"
+              >
+                <MoneyInput
+                  id="hold-price"
+                  value={price}
+                  onChange={(event) => setPrice(event.target.value)}
+                />
+              </Field>
+            </FieldGrid>
+          </section>
 
           <div className="rounded-2xl border border-gold/20 bg-gold-soft/60 p-4">
             <p className="text-[0.58rem] font-medium text-gold-strong/70">

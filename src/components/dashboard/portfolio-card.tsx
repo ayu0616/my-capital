@@ -89,7 +89,10 @@ export function PortfolioCard({
                     {slice.label}
                   </span>
                   <span className="text-[0.62rem] font-medium text-muted tabular">
-                    {formatPercent(slice.ratio)}
+                    {formatPercent(
+                      slice.ratio,
+                      slice.ratio > 0 && slice.ratio < 0.001 ? 2 : 1,
+                    )}
                   </span>
                   <span className="w-[4.8rem] text-right text-[0.66rem] font-semibold text-ink tabular">
                     {formatYen(slice.amount, {})}

@@ -20,4 +20,7 @@ export const DEFAULT_HOLDING: Omit<HoldingStockStatus, 'updatedAt'> = {
   currentAccumulatedShares: 0,
   latestStockPrice: 0,
   targetShares: 100,
+  recordedAt: '',
+  averageAcquisitionPrice: 0,
+  carryoverAmount: 0,
 }

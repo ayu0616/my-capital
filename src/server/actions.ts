@@ -55,6 +55,9 @@ const holdingInput = z.object({
   currentAccumulatedShares: z.number().min(0).max(10_000_000),
   latestStockPrice: z.number().min(0).max(10_000_000),
   targetShares: z.number().int().min(1).max(10_000_000),
+  recordedAt: dateString,
+  averageAcquisitionPrice: z.number().min(0).max(10_000_000),
+  carryoverAmount: z.number().int().min(0).max(1_000_000_000),
 })
 
 export const updateHolding = createServerFn({ method: 'POST' })
@@ -81,6 +84,8 @@ const snapshotInput = z.object({
   nisaContributedPrincipal: z.number().int().min(0).max(1_000_000_000_000),
   fujitsuRomanStockShares: z.number().min(0).max(10_000_000),
   holdingStockShares: z.number().min(0).max(10_000_000),
+  holdingAverageAcquisitionPrice: z.number().min(0).max(10_000_000),
+  holdingCarryoverAmount: z.number().int().min(0).max(1_000_000_000),
   fujitsuCurrentPrice: z.number().min(0).max(10_000_000),
   gearResaleAmount: z.number().int().min(0).max(1_000_000_000_000),
   notes: optionalNotes,
@@ -102,6 +107,8 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
           nisaContributedPrincipal: data.nisaContributedPrincipal,
           fujitsuRomanStockShares: data.fujitsuRomanStockShares,
           holdingStockShares: data.holdingStockShares,
+          holdingAverageAcquisitionPrice: data.holdingAverageAcquisitionPrice,
+          holdingCarryoverAmount: data.holdingCarryoverAmount,
           fujitsuCurrentPrice: data.fujitsuCurrentPrice,
           gearResaleAmount: data.gearResaleAmount,
           notes: data.notes ?? null,
@@ -130,6 +137,8 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
       nisaContributedPrincipal: data.nisaContributedPrincipal,
       fujitsuRomanStockShares: data.fujitsuRomanStockShares,
       holdingStockShares: data.holdingStockShares,
+      holdingAverageAcquisitionPrice: data.holdingAverageAcquisitionPrice,
+      holdingCarryoverAmount: data.holdingCarryoverAmount,
       fujitsuCurrentPrice: data.fujitsuCurrentPrice,
       gearResaleAmount: data.gearResaleAmount,
       notes: data.notes ?? null,

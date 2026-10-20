@@ -41,6 +41,9 @@ export const holdingStockStatus = sqliteTable('holding_stock_status', {
   currentAccumulatedShares: real('current_accumulated_shares').notNull().default(0),
   latestStockPrice: real('latest_stock_price').notNull().default(0),
   targetShares: integer('target_shares').notNull().default(100),
+  recordedAt: text('recorded_at').notNull().default(''), // 会社ページの記録日 YYYY-MM-DD
+  averageAcquisitionPrice: real('average_acquisition_price').notNull().default(0), // 平均取得単価
+  carryoverAmount: integer('carryover_amount').notNull().default(0), // 繰越金
   updatedAt: text('updated_at').notNull(),
 })
 
@@ -59,6 +62,8 @@ export const assetSnapshots = sqliteTable(
     nisaContributedPrincipal: integer('nisa_contributed_principal').notNull(), // NISA 累計元本
     fujitsuRomanStockShares: real('fujitsu_roman_stock_shares').notNull().default(0), // NISA ロマン枠
     holdingStockShares: real('holding_stock_shares').notNull().default(0), // 持株会の保有株数
+    holdingAverageAcquisitionPrice: real('holding_average_acquisition_price').notNull().default(0), // 持株会の平均取得単価
+    holdingCarryoverAmount: integer('holding_carryover_amount').notNull().default(0), // 持株会の繰越金
     fujitsuCurrentPrice: real('fujitsu_current_price').notNull(), // 基準株価
     gearResaleAmount: integer('gear_resale_amount').notNull().default(0), // 機材残存価値
     notes: text('notes'),
