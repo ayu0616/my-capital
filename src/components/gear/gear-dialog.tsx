@@ -68,12 +68,12 @@ export function GearDialog({
 
   function pickFile(nextFile: File | null) {
     if (!nextFile) return
-    if (!nextFile.type.startsWith('image/')) {
-      setError('画像ファイルを選択してください')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(nextFile.type)) {
+      setError('JPEG・PNG・WebP の画像を選択してください')
       return
     }
-    if (nextFile.size > 20 * 1024 * 1024) {
-      setError('画像は20MB以下にしてください')
+    if (nextFile.size > 8 * 1024 * 1024) {
+      setError('画像は8MB以下にしてください')
       return
     }
     setObjectUrl((current) => {
@@ -205,7 +205,7 @@ export function GearDialog({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             className="sr-only"
             onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
           />

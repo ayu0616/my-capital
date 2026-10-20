@@ -16,6 +16,9 @@ import {
 const COOKIE_NAME = 'als_session'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
 
+let cachedPasscode: string | null = null
+let cachedKey: Promise<CryptoKey> | null = null
+
 function configuredPasscode() {
   return (env.APP_PASSCODE ?? '').trim()
 }
@@ -31,13 +34,31 @@ function toBase64Url(bytes: Uint8Array) {
 }
 
 async function hmacKey() {
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(`${configuredPasscode()}::asset-life-session-v1`),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify'],
-  )
+  const passcode = configuredPasscode()
+  if (cachedKey && cachedPasscode === passcode) return cachedKey
+  cachedPasscode = passcode
+  cachedKey = (async () => {
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(passcode),
+      'PBKDF2',
+      false,
+      ['deriveKey'],
+    )
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: new TextEncoder().encode('asset-life-session-v1'),
+        iterations: 100_000,
+        hash: 'SHA-256',
+      },
+      baseKey,
+      { name: 'HMAC', hash: 'SHA-256', length: 256 },
+      false,
+      ['sign', 'verify'],
+    )
+  })()
+  return cachedKey
 }
 
 async function sign(payload: string) {
