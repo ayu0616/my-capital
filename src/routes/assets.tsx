@@ -59,6 +59,7 @@ function AssetsPage() {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<AssetSnapshot | null>(null)
+  const [newMonth, setNewMonth] = useState<string | null>('')
   const [deleting, setDeleting] = useState<AssetSnapshot | null>(null)
   const [deletePending, setDeletePending] = useState(false)
 
@@ -80,8 +81,9 @@ function AssetsPage() {
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
 
-  function openNew() {
+  function openNew(yearMonth: string | null = '') {
     setEditing(null)
+    setNewMonth(yearMonth)
     setDialogOpen(true)
   }
 
@@ -95,7 +97,7 @@ function AssetsPage() {
       (snapshot) => snapshot.yearMonth === currentYearMonth(),
     )
     if (current) openEdit(current)
-    else openNew()
+    else openNew(null)
   }
 
   async function confirmDelete() {
@@ -123,7 +125,7 @@ function AssetsPage() {
         description="月に一度だけ、静かに数字を写す。積み上がりは、あとから効いてくる。"
         actions={
           <>
-            <Button variant="outline" onClick={openNew}>
+            <Button variant="outline" onClick={() => openNew()}>
               <Plus className="size-3.5" />
               月を追加
             </Button>
@@ -188,7 +190,7 @@ function AssetsPage() {
               全 {snapshots.length} ヶ月の記録
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={openNew}>
+          <Button variant="outline" size="sm" onClick={() => openNew()}>
             <Plus className="size-3.5" />
             新規
           </Button>
@@ -200,7 +202,7 @@ function AssetsPage() {
               icon={Wallet}
               title="最初のスナップショットを記録しましょう"
               description="現預金・投資信託・持株会・機材の評価額を1ヶ月分入力すると、ここから資産の物語が始まります。"
-              action={<Button onClick={openNew}>記録をはじめる</Button>}
+              action={<Button onClick={() => openNew(null)}>記録をはじめる</Button>}
             />
           ) : (
             <>
@@ -351,6 +353,7 @@ function AssetsPage() {
         latest={latest}
         holding={holding}
         gearResaleTotal={gearSummary.resaleTotal}
+        defaultYearMonth={newMonth}
       />
 
       <ConfirmDialog

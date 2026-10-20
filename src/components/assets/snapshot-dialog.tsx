@@ -49,9 +49,10 @@ function newValues(
   latest: AssetSnapshot | null,
   holding: HoldingStockStatus,
   gearResaleTotal: number,
+  yearMonth: string,
 ): SnapshotFormValues {
   return {
-    yearMonth: currentYearMonth(),
+    yearMonth,
     cashAmount: latest ? String(latest.cashAmount) : '',
     nisaOrkanAmount: latest ? String(latest.nisaOrkanAmount) : '',
     nisaSp500Amount: latest ? String(latest.nisaSp500Amount) : '',
@@ -76,6 +77,7 @@ export function SnapshotDialog({
   latest,
   holding,
   gearResaleTotal,
+  defaultYearMonth = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -84,10 +86,17 @@ export function SnapshotDialog({
   latest: AssetSnapshot | null
   holding: HoldingStockStatus
   gearResaleTotal: number
+  /** null = current month, '' = blank month picker, or a YYYY-MM value. */
+  defaultYearMonth?: string | null
 }) {
   const router = useRouter()
   const [form, setForm] = useState<SnapshotFormValues>(() =>
-    newValues(latest, holding, gearResaleTotal),
+    newValues(
+      latest,
+      holding,
+      gearResaleTotal,
+      defaultYearMonth ?? currentYearMonth(),
+    ),
   )
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,15 +106,21 @@ export function SnapshotDialog({
     setForm(
       snapshot
         ? valuesFromSnapshot(snapshot)
-        : newValues(latest, holding, gearResaleTotal),
+        : newValues(
+            latest,
+            holding,
+            gearResaleTotal,
+            defaultYearMonth ?? currentYearMonth(),
+          ),
     )
     setError(null)
-  }, [open, snapshot, latest, holding, gearResaleTotal])
+  }, [open, snapshot, latest, holding, gearResaleTotal, defaultYearMonth])
 
   const duplicate = snapshots.some(
     (item) =>
       item.yearMonth === form.yearMonth && item.id !== snapshot?.id,
   )
+  const isBlankNew = !snapshot && defaultYearMonth === ''
 
   const previewTotal = useMemo(() => {
     const cash = parseYenInput(form.cashAmount)
@@ -174,11 +189,19 @@ export function SnapshotDialog({
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title={snapshot ? 'スナップショットを編集' : '今月の資産を記録'}
+      title={
+        snapshot
+          ? 'スナップショットを編集'
+          : isBlankNew
+            ? '月を追加'
+            : '今月の資産を記録'
+      }
       description={
         snapshot
           ? `${formatYearMonth(snapshot.yearMonth)} の記録を更新します。`
-          : '月末の評価額を入力すると、純資産とポートフォリオに反映されます。'
+          : isBlankNew
+            ? '記録する年月を選んでください。金額は最新月の値を初期値にしています。'
+            : '月末の評価額を入力すると、純資産とポートフォリオに反映されます。'
       }
       footer={
         <>
@@ -210,7 +233,9 @@ export function SnapshotDialog({
               hint={
                 snapshot
                   ? '編集時は年月を変更できません。'
-                  : '同じ年月は1件だけ記録できます。'
+                  : isBlankNew
+                    ? 'まだ記録していない月を選んでください。'
+                    : '同じ年月は1件だけ記録できます。'
               }
             >
               <Input
