@@ -1,5 +1,5 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router'
-import { ArrowLeft, KeyRound, Loader2, LockKeyhole } from 'lucide-react'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { KeyRound, Loader2, LockKeyhole } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/form'
@@ -179,15 +179,8 @@ function LoginPage() {
             </p>
           </div>
 
-          <Link
-            to="/"
-            className="mt-6 inline-flex items-center gap-1.5 text-[0.68rem] font-semibold text-muted transition-colors hover:text-brand"
-          >
-            <ArrowLeft className="size-3.5" />
-            台帳へ戻る
-          </Link>
           <p className="mt-8 text-[0.56rem] leading-relaxed text-muted/70">
-            APP_PASSCODE が未設定の場合、この画面は表示されません。
+            パスコードがわからない場合は、この台帳の管理者に確認してください。
           </p>
         </div>
       </main>
