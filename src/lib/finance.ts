@@ -6,6 +6,7 @@ import type {
   HoldingStockStatus,
   HoldingWithdrawal,
   SelfInvestment,
+  StockGoal,
 } from '../db/schema'
 import {
   addMonths,
@@ -14,6 +15,7 @@ import {
   currentYearMonth,
   formatMonthEta,
   monthsBetween,
+  parseDateOnly,
   todayDateOnly,
 } from './format'
 
@@ -446,6 +448,154 @@ export function buildHoldingPlan(
     isComplete: remainingShares <= 0,
     predictedShares: Math.min(targetShares, totalShares + monthlyShares),
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Shareholder-benefit stock goals                                            */
+/* -------------------------------------------------------------------------- */
+
+export interface StockGoalSummary {
+  id: string
+  code: string
+  name: string
+  account: string
+  currentShares: number
+  targetShares: number
+  remainingShares: number
+  progress: number
+  targetDate: Date
+  daysRemaining: number
+  monthsRemaining: number | null
+  requiredSharesPerMonth: number | null
+  requiredBudgetPerMonth: number | null
+  purchaseCountRemaining: number | null
+  projectedDate: Date | null
+  projectedMonthLabel: string | null
+  isAchieved: boolean
+  isOverdue: boolean
+  isOnTrack: boolean | null
+  minimumPurchaseUnit: number
+  averageAcquisitionPrice: number
+  currentPrice: number
+  monthlyBudget: number
+  value: number
+  costBasis: number | null
+  unrealizedGain: number | null
+  unrealizedGainRatio: number | null
+  benefitNote: string
+  notes: string | null
+  autoUpdateFromCsv: boolean
+}
+
+export function buildStockGoalSummary(
+  goal: StockGoal,
+  today = todayDateOnly(),
+): StockGoalSummary {
+  const currentShares = Math.max(0, safe(goal.currentShares))
+  const targetShares = Math.max(1, safe(goal.targetShares) || 100)
+  const minimumPurchaseUnit = Math.max(
+    1,
+    Math.floor(safe(goal.minimumPurchaseUnit) || 1),
+  )
+  const targetDate = parseDateOnly(goal.targetDate)
+  const remainingShares = Math.max(0, targetShares - currentShares)
+  const isAchieved = remainingShares <= 0
+  const daysRemaining = Math.ceil(
+    (targetDate.getTime() - today.getTime()) / 86_400_000,
+  )
+  const monthsRemaining = monthsBetween(today, targetDate)
+  const requiredSharesPerMonth =
+    isAchieved
+      ? 0
+      : monthsRemaining > 0
+        ? remainingShares / monthsRemaining
+        : null
+  const currentPrice = Math.max(0, safe(goal.currentPrice))
+  const monthlyBudget = Math.max(0, safe(goal.monthlyBudget))
+  const requiredBudgetPerMonth =
+    requiredSharesPerMonth != null && currentPrice > 0
+      ? requiredSharesPerMonth * currentPrice
+      : null
+  const purchaseCountRemaining = isAchieved
+    ? 0
+    : Math.ceil(remainingShares / minimumPurchaseUnit)
+  const monthlySharesByBudget =
+    currentPrice > 0 && monthlyBudget > 0 ? monthlyBudget / currentPrice : 0
+  const projectedDate =
+    isAchieved
+      ? today
+      : monthlySharesByBudget > 0
+        ? addMonths(today, Math.ceil(remainingShares / monthlySharesByBudget))
+        : null
+  const isOverdue = !isAchieved && daysRemaining < 0
+  const isOnTrack =
+    isAchieved
+      ? true
+      : projectedDate != null
+        ? projectedDate.getTime() <= targetDate.getTime()
+        : null
+  const averageAcquisitionPrice = Math.max(
+    0,
+    safe(goal.averageAcquisitionPrice),
+  )
+  const value = currentShares * currentPrice
+  const costBasis =
+    averageAcquisitionPrice > 0
+      ? currentShares * averageAcquisitionPrice
+      : null
+  const unrealizedGain =
+    costBasis != null && currentPrice > 0
+      ? value - costBasis
+      : null
+  const unrealizedGainRatio =
+    costBasis != null && costBasis > 0 && currentPrice > 0
+      ? (currentPrice - averageAcquisitionPrice) / averageAcquisitionPrice
+      : null
+  return {
+    id: goal.id,
+    code: goal.code,
+    name: goal.name,
+    account: goal.account,
+    currentShares,
+    targetShares,
+    remainingShares,
+    progress: clamp(currentShares / targetShares, 0, 1),
+    targetDate,
+    daysRemaining,
+    monthsRemaining: monthsRemaining > 0 ? monthsRemaining : null,
+    requiredSharesPerMonth,
+    requiredBudgetPerMonth,
+    purchaseCountRemaining,
+    projectedDate,
+    projectedMonthLabel:
+      projectedDate && !isAchieved ? formatMonthEta(projectedDate) : null,
+    isAchieved,
+    isOverdue,
+    isOnTrack,
+    minimumPurchaseUnit,
+    averageAcquisitionPrice,
+    currentPrice,
+    monthlyBudget,
+    value,
+    costBasis,
+    unrealizedGain,
+    unrealizedGainRatio,
+    benefitNote: goal.benefitNote,
+    notes: goal.notes,
+    autoUpdateFromCsv: goal.autoUpdateFromCsv === 1,
+  }
+}
+
+export function buildStockGoalSummaries(
+  goals: StockGoal[],
+  today = todayDateOnly(),
+): StockGoalSummary[] {
+  return goals
+    .map((goal) => buildStockGoalSummary(goal, today))
+    .sort((a, b) => {
+      if (a.isAchieved !== b.isAchieved) return a.isAchieved ? 1 : -1
+      return a.targetDate.getTime() - b.targetDate.getTime()
+    })
 }
 
 /* -------------------------------------------------------------------------- */

@@ -215,6 +215,7 @@ function RakutenImportDialog({
     toDateOnlyString(todayDateOnly()),
   )
   const [updateNisaPrincipal, setUpdateNisaPrincipal] = useState(false)
+  const [updateStockGoals, setUpdateStockGoals] = useState(true)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -223,6 +224,7 @@ function RakutenImportDialog({
     setParsed(null)
     setError(null)
     setUpdateNisaPrincipal(false)
+    setUpdateStockGoals(true)
     setAsOfDate(toDateOnlyString(todayDateOnly()))
   }
 
@@ -266,12 +268,13 @@ function RakutenImportDialog({
     setPending(true)
     setError(null)
     try {
-      await importRakutenSecurities({
+      const result = await importRakutenSecurities({
         data: {
           asOfDate,
           fileName,
           cashValue: parsed.cashValue,
           updateNisaPrincipal,
+          updateStockGoals,
           holdings: parsed.holdings.map((holding) => ({
             type: holding.type,
             category: holding.category,
@@ -288,7 +291,11 @@ function RakutenImportDialog({
           })),
         },
       })
-      toast.success('楽天証券の保有資産を取り込みました')
+      toast.success(
+        result.updatedGoals > 0
+          ? `楽天証券の保有資産を取り込み、優待株${result.updatedGoals}件を更新しました`
+          : '楽天証券の保有資産を取り込みました',
+      )
       await router.invalidate()
       reset()
       onOpenChange(false)
@@ -504,7 +511,7 @@ function RakutenImportDialog({
               </table>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Field
                 label="基準日"
                 htmlFor="rakuten-as-of"
@@ -535,6 +542,24 @@ function RakutenImportDialog({
                       {parsed.nisaCostBasis > 0
                         ? `現在の保有分の取得額は ${formatYen(parsed.nisaCostBasis)} です。通常は変更せず、必要に応じてオンにしてください。`
                         : '口座列がNISAの銘柄がないため、この項目は更新できません。'}
+                    </span>
+                  </span>
+                </label>
+              </div>
+              <div className="flex flex-col justify-center rounded-xl border border-line/80 bg-canvas/35 px-3.5 py-3">
+                <label className="flex items-start gap-2.5 text-[0.66rem] font-medium text-ink">
+                  <input
+                    type="checkbox"
+                    checked={updateStockGoals}
+                    onChange={(event) =>
+                      setUpdateStockGoals(event.target.checked)
+                    }
+                    className="mt-0.5 size-4 rounded border-line accent-brand"
+                  />
+                  <span>
+                    優待株の現在株数を更新する
+                    <span className="mt-0.5 block text-[0.54rem] leading-relaxed text-muted">
+                      銘柄コードが一致する優待株目標を、CSVの保有数量に合わせます。
                     </span>
                   </span>
                 </label>

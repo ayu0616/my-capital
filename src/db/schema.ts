@@ -71,6 +71,40 @@ export const holdingWithdrawals = sqliteTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/*  Shareholder-benefit stock goals                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 優待目的で集めている個別株の目標。
+ * 現在株数は手入力のほか、楽天証券CSVの銘柄コード一致で更新できる。
+ */
+export const stockGoals = sqliteTable(
+  'stock_goals',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').notNull().default(''), // 証券コード。CSV照合に使う
+    name: text('name').notNull(),
+    account: text('account').notNull().default('楽天証券'),
+    targetShares: real('target_shares').notNull().default(100),
+    currentShares: real('current_shares').notNull().default(0),
+    targetDate: text('target_date').notNull(), // YYYY-MM-DD
+    minimumPurchaseUnit: integer('minimum_purchase_unit').notNull().default(1),
+    averageAcquisitionPrice: real('average_acquisition_price').notNull().default(0),
+    currentPrice: real('current_price').notNull().default(0),
+    monthlyBudget: integer('monthly_budget').notNull().default(0),
+    benefitNote: text('benefit_note').notNull().default(''),
+    notes: text('notes'),
+    autoUpdateFromCsv: integer('auto_update_from_csv').notNull().default(1),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('stock_goals_code_idx').on(table.code),
+    index('stock_goals_target_date_idx').on(table.targetDate),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Financial accounts (metadata)                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -231,6 +265,7 @@ export const careerEvents = sqliteTable('career_events', {
 export type AppSettings = typeof appSettings.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
 export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
+export type StockGoal = typeof stockGoals.$inferSelect
 export type FinancialAccount = typeof financialAccounts.$inferSelect
 export type SecuritiesImportBatch = typeof securitiesImportBatches.$inferSelect
 export type SecuritiesHolding = typeof securitiesHoldings.$inferSelect

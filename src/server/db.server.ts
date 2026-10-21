@@ -16,6 +16,7 @@ import {
   securitiesHoldings,
   securitiesImportBatches,
   selfInvestments,
+  stockGoals,
 } from '../db/schema'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
 
@@ -86,6 +87,13 @@ export async function readHoldingWithdrawals() {
     .orderBy(desc(holdingWithdrawals.withdrawnAt), desc(holdingWithdrawals.createdAt))
 }
 
+export async function readStockGoals() {
+  return getDb()
+    .select()
+    .from(stockGoals)
+    .orderBy(asc(stockGoals.targetDate), asc(stockGoals.createdAt))
+}
+
 export async function fetchDashboardData() {
   await ensureBaseRows()
   const db = getDb()
@@ -97,6 +105,7 @@ export async function fetchDashboardData() {
     gears,
     investments,
     events,
+    goals,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -108,6 +117,7 @@ export async function fetchDashboardData() {
       .from(selfInvestments)
       .orderBy(desc(selfInvestments.completedAt)),
     db.select().from(careerEvents).orderBy(desc(careerEvents.occurredAt)),
+    readStockGoals(),
   ])
 
   return {
@@ -118,6 +128,16 @@ export async function fetchDashboardData() {
     gears,
     investments,
     careerEvents: events,
+    stockGoals: goals,
+    today: toDateOnlyString(todayDateOnly()),
+  }
+}
+
+export async function fetchStockGoalsData() {
+  await ensureBaseRows()
+  const goals = await readStockGoals()
+  return {
+    goals,
     today: toDateOnlyString(todayDateOnly()),
   }
 }
@@ -208,6 +228,7 @@ export async function fetchSettingsData() {
     gearCount,
     investmentCount,
     securitiesCount,
+    stockGoalCount,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -220,6 +241,7 @@ export async function fetchSettingsData() {
     db.select().from(cameraGears),
     db.select().from(selfInvestments),
     db.select().from(securitiesHoldings),
+    db.select().from(stockGoals),
   ])
   return {
     settings,
@@ -232,6 +254,7 @@ export async function fetchSettingsData() {
       investments: investmentCount.length,
       withdrawals: withdrawals.length,
       securities: securitiesCount.length,
+      stockGoals: stockGoalCount.length,
     },
   }
 }

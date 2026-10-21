@@ -1,6 +1,7 @@
 import { Link, useMatchRoute } from '@tanstack/react-router'
 import {
   Camera,
+  Gift,
   GraduationCap,
   LayoutDashboard,
   Settings,
@@ -11,9 +12,10 @@ import { BrandMark } from './brand-mark'
 const navItems = [
   { to: '/', label: 'ダッシュボード', icon: LayoutDashboard, code: '01' },
   { to: '/assets', label: '資産管理', icon: Wallet, code: '02' },
-  { to: '/gear', label: '機材台帳', icon: Camera, code: '03' },
-  { to: '/self-investment', label: '自己投資', icon: GraduationCap, code: '04' },
-  { to: '/settings', label: '設定', icon: Settings, code: '05' },
+  { to: '/stock-goals', label: '優待株', icon: Gift, code: '03' },
+  { to: '/gear', label: '機材台帳', icon: Camera, code: '04' },
+  { to: '/self-investment', label: '自己投資', icon: GraduationCap, code: '05' },
+  { to: '/settings', label: '設定', icon: Settings, code: '06' },
 ] as const
 
 export function Sidebar() {
@@ -99,7 +101,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="mobile-nav fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 lg:hidden"
+      className="mobile-nav fixed inset-x-0 bottom-0 z-50 grid grid-cols-6 lg:hidden"
       aria-label="モバイルナビゲーション"
     >
       {navItems.map((item) => {

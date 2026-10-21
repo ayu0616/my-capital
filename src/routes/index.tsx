@@ -8,6 +8,7 @@ import { NetWorthHero } from '../components/dashboard/net-worth-hero'
 import { NisaCard } from '../components/dashboard/nisa-card'
 import { PortfolioCard } from '../components/dashboard/portfolio-card'
 import { RecentSnapshots } from '../components/dashboard/recent-snapshots'
+import { StockGoalsCard } from '../components/dashboard/stock-goals-card'
 import { TrendCard } from '../components/dashboard/trend-card'
 import { PageHeader } from '../components/ui/page'
 import { buttonVariants } from '../components/ui/button'
@@ -19,6 +20,7 @@ import {
   buildMonthlySeries,
   buildNetWorthTrend,
   buildNisaPlan,
+  buildStockGoalSummaries,
   snapshotTotal,
 } from '../lib/finance'
 import { formatYearMonth, parseDateOnly } from '../lib/format'
@@ -42,6 +44,7 @@ function Dashboard() {
     gears,
     investments,
     careerEvents,
+    stockGoals,
   } = data
   const today = parseDateOnly(data.today)
   const latest = snapshots.at(-1) ?? null
@@ -64,6 +67,7 @@ function Dashboard() {
   const holdingPlan = buildHoldingPlan(holding, today, withdrawals)
   const humanCapital = buildHumanCapital(investments, careerEvents)
   const series = buildMonthlySeries(snapshots)
+  const stockGoalSummaries = buildStockGoalSummaries(stockGoals, today)
 
   return (
     <>
@@ -105,6 +109,13 @@ function Dashboard() {
         <HoldingCard className="lg:col-span-5" plan={holdingPlan} />
         <LensFundCard className="lg:col-span-3" settings={settings} />
         <HumanCapitalCard className="lg:col-span-4" summary={humanCapital} />
+
+        {stockGoalSummaries.length > 0 ? (
+          <StockGoalsCard
+            className="lg:col-span-12"
+            summaries={stockGoalSummaries}
+          />
+        ) : null}
 
         <GearPreview className="lg:col-span-8" gears={gears} summary={gearSummary} />
         <RecentSnapshots className="lg:col-span-4" snapshots={snapshots} />

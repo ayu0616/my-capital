@@ -17,6 +17,11 @@ INSERT OR REPLACE INTO holding_withdrawals
 VALUES
   ('withdraw-2026-08', '2026-08-20', 10, 3340, 3688, 'SMBC日興証券', '単元達成を見据えて、まとまった株数を証券口座へ移した。', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z');
 
+INSERT OR REPLACE INTO stock_goals
+  (id, code, name, account, target_shares, current_shares, target_date, minimum_purchase_unit, average_acquisition_price, current_price, monthly_budget, benefit_note, notes, auto_update_from_csv, created_at, updated_at)
+VALUES
+  ('goal-jr-west', '9021', '西日本旅客鉄道（JR西日本）', '楽天証券', 100, 24, '2027-03-31', 1, 2850, 3150, 30000, '100株以上でJR西日本の株主優待。1株単位で購入できるため、期限までに100株を目指す。', '2026年10月時点で24株。優待条件は公式情報を確認。', 1, '2026-10-21T00:00:00.000Z', '2026-10-21T00:00:00.000Z');
+
 INSERT OR REPLACE INTO financial_accounts
   (id, name, institution, kind, role, notes, sort_order, created_at, updated_at)
 VALUES
@@ -39,12 +44,12 @@ VALUES
   ('snap-2026-07', '2026-07', 2940000, 0, 0, 11590000, 0, 0, 0, 11560000, 10, 64.7, 0, 3315, 4300, 3812, 565000, NULL, '2026-07-31T12:00:00.000Z', '2026-07-31T12:00:00.000Z'),
   ('snap-2026-08', '2026-08', 3130000, 0, 0, 11870000, 0, 0, 0, 11700000, 10, 65.6, 10, 3340, 4500, 3688, 570000, '機材の買取相場がやや回復', '2026-08-31T12:00:00.000Z', '2026-08-31T12:00:00.000Z'),
   ('snap-2026-09', '2026-09', 3260000, 0, 0, 12150000, 0, 0, 0, 11800000, 10, 66.5, 10, 3385, 4680, 3910, 571000, NULL, '2026-09-30T12:00:00.000Z', '2026-09-30T12:00:00.000Z'),
-  ('snap-2026-10', '2026-10', 3180000, 0, 0, 12380000, 916000, 0, 120000, 11860000, 10, 67.4, 10, 3425, 4820, 3842, 610000, '楽天証券の保有資産CSVを取り込み', '2026-10-21T03:00:00.000Z', '2026-10-21T03:00:00.000Z');
+  ('snap-2026-10', '2026-10', 3180000, 0, 0, 12380000, 991600, 0, 120000, 11860000, 10, 67.4, 10, 3425, 4820, 3842, 610000, '楽天証券の保有資産CSVを取り込み', '2026-10-21T03:00:00.000Z', '2026-10-21T03:00:00.000Z');
 
 INSERT OR REPLACE INTO securities_import_batches
   (id, as_of_date, account, file_name, total_value, product_value, cash_value, stock_value, fund_value, other_value, fujitsu_value, holding_count, imported_at)
 VALUES
-  ('batch-2026-10', '2026-10-21', '楽天証券', 'rakuten-holdings-sample.csv', 13454420, 13334420, 120000, 916000, 12380000, 0, 38420, 5, '2026-10-21T03:00:00.000Z');
+  ('batch-2026-10', '2026-10-21', '楽天証券', 'rakuten-holdings-sample.csv', 13530020, 13410020, 120000, 991600, 12380000, 0, 38420, 6, '2026-10-21T03:00:00.000Z');
 
 INSERT OR REPLACE INTO securities_holdings
   (id, batch_id, as_of_date, account, category, type, code, name, account_type, quantity, unit, average_price, current_price, market_value, profit_loss, profit_loss_percent, cost_basis, is_fujitsu, source, imported_at)
@@ -53,7 +58,8 @@ VALUES
   ('holding-sp500', 'batch-2026-10', '2026-10-21', '楽天証券', 'fund', '投資信託', '03311187', '楽天・S&P500', 'NISA成長投資枠', 1984000, '口', 22000, 25000, 4960000, 595200, 0.136, 4364800, 0, 'rakuten_csv', '2026-10-21T03:00:00.000Z'),
   ('holding-fujitsu', 'batch-2026-10', '2026-10-21', '楽天証券', 'stock', '国内株式', '6702', '富士通', 'NISA成長投資枠', 10, '株', 3425, 3842, 38420, 4170, 0.122, 34250, 1, 'rakuten_csv', '2026-10-21T03:00:00.000Z'),
   ('holding-nintendo', 'batch-2026-10', '2026-10-21', '楽天証券', 'stock', '国内株式', '7974', '任天堂', 'NISA成長投資枠', 100, '株', 7800, 8500, 850000, 70000, 0.09, 780000, 0, 'rakuten_csv', '2026-10-21T03:00:00.000Z'),
-  ('holding-sony', 'batch-2026-10', '2026-10-21', '楽天証券', 'stock', '国内株式', '6758', 'ソニーグループ', 'NISA成長投資枠', 20, '株', 3000, 3300, 66000, 6000, 0.1, 60000, 0, 'rakuten_csv', '2026-10-21T03:00:00.000Z');
+  ('holding-sony', 'batch-2026-10', '2026-10-21', '楽天証券', 'stock', '国内株式', '6758', 'ソニーグループ', 'NISA成長投資枠', 20, '株', 3000, 3300, 66000, 6000, 0.1, 60000, 0, 'rakuten_csv', '2026-10-21T03:00:00.000Z'),
+  ('holding-jr-west', 'batch-2026-10', '2026-10-21', '楽天証券', 'stock', '国内株式', '9021', '西日本旅客鉄道', 'NISA成長投資枠', 24, '株', 2850, 3150, 75600, 7200, 0.105, 68400, 0, 'rakuten_csv', '2026-10-21T03:00:00.000Z');
 
 INSERT OR REPLACE INTO camera_gears
   (id, name, category, purchased_at, purchase_price, resale_value, image_key, notes, created_at, updated_at)

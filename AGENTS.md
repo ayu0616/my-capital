@@ -23,6 +23,7 @@
 - `src/lib/format.ts` pins the app to JST with UTC-noon date-only helpers. Use `todayDateOnly`, `parseDateOnly`, `toDateOnlyString`, and `formatYen`/`formatPercent`; do not use raw `toISOString().slice(0, 10)` for app date fields.
 - D1 access goes through `getDb()` in `src/db/client.server.ts`; schema is `src/db/schema.ts`. `app_settings` and `holding_stock_status` are singletons keyed `default`; read them with `readSettings()`/`readHolding()`.
 - Holding data is duplicated: current values in `holding_stock_status`, monthly history in `asset_snapshots.holding_*`. Update schema, migration, actions, snapshot dialog, seed, and finance together.
+- Shareholder-benefit goals live in `stock_goals`; they are targets, not assets, so never add them to net worth. CSV import updates matching goals by stock code when `auto_update_from_csv` is enabled. Use `buildStockGoalSummaries` instead of re-deriving pace.
 - Snapshot queries are ascending by `yearMonth`; the latest is `.at(-1)`. Yen totals are integer columns; prices/shares are `real`. Dates are `YYYY-MM-DD`, months `YYYY-MM`.
 - Net worth includes gear resale and holding carryover; carryover is also a separate portfolio slice. For Fujitsu concentration use `buildCurrentPortfolio`; its ratio is against total net worth including cash, carryover, and gear.
 - Single-user app; do not add user tables/tenancy without an explicit request.

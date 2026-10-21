@@ -12,6 +12,7 @@ import {
   securitiesHoldings,
   securitiesImportBatches,
   selfInvestments,
+  stockGoals,
 } from '../db/schema'
 import { readHolding, readSettings } from './db.server'
 import { removeImage } from './storage.server'
@@ -271,6 +272,73 @@ export const deleteSnapshot = createServerFn({ method: 'POST' })
   })
 
 /* -------------------------------------------------------------------------- */
+/*  Shareholder-benefit stock goals                                            */
+/* -------------------------------------------------------------------------- */
+
+const stockGoalInput = z.object({
+  id: z.string().min(1).optional(),
+  code: z.string().trim().max(40).default(''),
+  name: z.string().trim().min(1, '銘柄名を入力してください').max(120),
+  account: z.string().trim().min(1).max(80).default('楽天証券'),
+  targetShares: z.number().min(0.0001).max(10_000_000),
+  currentShares: z.number().min(0).max(10_000_000),
+  targetDate: dateString,
+  minimumPurchaseUnit: z.number().int().min(1).max(100_000),
+  averageAcquisitionPrice: z.number().min(0).max(10_000_000),
+  currentPrice: z.number().min(0).max(10_000_000),
+  monthlyBudget: z.number().int().min(0).max(1_000_000_000),
+  benefitNote: z.string().trim().max(1000).default(''),
+  notes: optionalNotes,
+  autoUpdateFromCsv: z.boolean().default(true),
+})
+
+export const saveStockGoal = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => stockGoalInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const now = new Date().toISOString()
+    const values = {
+      code: data.code,
+      name: data.name,
+      account: data.account,
+      targetShares: data.targetShares,
+      currentShares: data.currentShares,
+      targetDate: data.targetDate,
+      minimumPurchaseUnit: data.minimumPurchaseUnit,
+      averageAcquisitionPrice: data.averageAcquisitionPrice,
+      currentPrice: data.currentPrice,
+      monthlyBudget: data.monthlyBudget,
+      benefitNote: data.benefitNote,
+      notes: data.notes ?? null,
+      autoUpdateFromCsv: data.autoUpdateFromCsv ? 1 : 0,
+      updatedAt: now,
+    }
+
+    if (data.id) {
+      await db
+        .update(stockGoals)
+        .set(values)
+        .where(eq(stockGoals.id, data.id))
+      return { ok: true as const, id: data.id }
+    }
+
+    const id = newId()
+    await db.insert(stockGoals).values({
+      id,
+      ...values,
+      createdAt: now,
+    })
+    return { ok: true as const, id }
+  })
+
+export const deleteStockGoal = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    await getDb().delete(stockGoals).where(eq(stockGoals.id, data.id))
+    return { ok: true as const }
+  })
+
+/* -------------------------------------------------------------------------- */
 /*  Rakuten Securities CSV import                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -298,11 +366,16 @@ const securitiesImportInput = z.object({
   fileName: z.string().trim().max(200).default(''),
   cashValue: z.number().int().min(0).max(1_000_000_000_000),
   updateNisaPrincipal: z.boolean().default(false),
+  updateStockGoals: z.boolean().default(true),
   holdings: z.array(securitiesHoldingInput).min(1).max(500),
 })
 
 function isNisaAccountType(accountType: string): boolean {
   return /NISA|成長投資枠|つみたて投資枠/i.test(accountType)
+}
+
+function normalizeStockCode(code: string): string {
+  return code.trim().toUpperCase().replace(/[^0-9A-Z]/g, '')
 }
 
 function isFujitsuHolding(code: string, name: string): boolean {
@@ -393,8 +466,13 @@ export const importRakutenSecurities = createServerFn({ method: 'POST' })
         ),
       )
 
-    for (let index = 0; index < rows.length; index += 6) {
-      await db.insert(securitiesHoldings).values(rows.slice(index, index + 6))
+    // D1 allows at most 100 bound parameters per statement. This row has
+    // 20 columns, so insert 5 holdings at a time.
+    const insertChunkSize = 5
+    for (let index = 0; index < rows.length; index += insertChunkSize) {
+      await db
+        .insert(securitiesHoldings)
+        .values(rows.slice(index, index + insertChunkSize))
     }
 
     await db.insert(securitiesImportBatches).values({
@@ -412,6 +490,48 @@ export const importRakutenSecurities = createServerFn({ method: 'POST' })
       holdingCount: rows.length,
       importedAt: now,
     })
+
+    let updatedGoals = 0
+    if (data.updateStockGoals) {
+      const goals = await db
+        .select()
+        .from(stockGoals)
+        .where(eq(stockGoals.autoUpdateFromCsv, 1))
+      for (const goal of goals) {
+        const goalCode = normalizeStockCode(goal.code)
+        if (!goalCode) continue
+        const matches = rows.filter(
+          (row) =>
+            row.category === 'stock' &&
+            normalizeStockCode(row.code) === goalCode,
+        )
+        if (matches.length === 0) continue
+        const currentShares = matches.reduce(
+          (sum, row) => sum + row.quantity,
+          0,
+        )
+        const currentPrice =
+          [...matches].reverse().find((row) => row.currentPrice > 0)
+            ?.currentPrice ?? goal.currentPrice
+        const totalCost = matches.reduce(
+          (sum, row) => sum + row.costBasis,
+          0,
+        )
+        await db
+          .update(stockGoals)
+          .set({
+            currentShares,
+            currentPrice,
+            averageAcquisitionPrice:
+              currentShares > 0 && totalCost > 0
+                ? totalCost / currentShares
+                : goal.averageAcquisitionPrice,
+            updatedAt: now,
+          })
+          .where(eq(stockGoals.id, goal.id))
+        updatedGoals += 1
+      }
+    }
 
     const [latest] = await db
       .select()
@@ -489,6 +609,7 @@ export const importRakutenSecurities = createServerFn({ method: 'POST' })
       productValue,
       cashValue: data.cashValue,
       holdingCount: rows.length,
+      updatedGoals,
     }
   })
 

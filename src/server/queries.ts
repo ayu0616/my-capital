@@ -5,6 +5,7 @@ import {
   fetchGearData,
   fetchSelfInvestmentData,
   fetchSettingsData,
+  fetchStockGoalsData,
 } from './db.server'
 import { isAuthRequired } from './auth.server'
 
@@ -28,6 +29,10 @@ export const getGearData = createServerFn({ method: 'GET' }).handler(async () =>
 
 export const getSelfInvestmentData = createServerFn({ method: 'GET' }).handler(
   async () => fetchSelfInvestmentData(),
+)
+
+export const getStockGoalsData = createServerFn({ method: 'GET' }).handler(
+  async () => fetchStockGoalsData(),
 )
 
 export const getSettingsData = createServerFn({ method: 'GET' }).handler(

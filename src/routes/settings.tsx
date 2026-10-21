@@ -666,7 +666,12 @@ function DataCard({
   counts,
   className,
 }: {
-  counts: { snapshots: number; gears: number; investments: number }
+  counts: {
+    snapshots: number
+    gears: number
+    investments: number
+    stockGoals: number
+  }
   className?: string
 }) {
   return (
@@ -682,9 +687,10 @@ function DataCard({
         <Database className="size-4 text-muted" />
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             { label: 'スナップショット', value: counts.snapshots, to: '/assets' as const },
+            { label: '優待株', value: counts.stockGoals, to: '/stock-goals' as const },
             { label: '機材', value: counts.gears, to: '/gear' as const },
             {
               label: '自己投資',
