@@ -50,7 +50,7 @@ export function RecentSnapshots({
           <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
             <p className="text-xs font-semibold text-ink">まだ記録がありません</p>
             <p className="mt-1 text-[0.62rem] text-muted">
-              最初の1ヶ月を記録して、推移を始めましょう。
+              最初の1ヶ月を記録すると、ここに推移が表示されます。
             </p>
             <Link
               to="/assets"

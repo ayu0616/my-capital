@@ -26,7 +26,7 @@ export function HoldingCard({
       <CardHeader className="items-start">
         <div>
           <CardKicker>Employee holding</CardKicker>
-          <CardTitle className="mt-1.5">富士通・100株への道</CardTitle>
+          <CardTitle className="mt-1.5">富士通・100株までの進捗</CardTitle>
         </div>
         <Badge variant={plan.isComplete ? 'success' : 'gold'}>
           {plan.isComplete
@@ -45,9 +45,9 @@ export function HoldingCard({
                 <PartyPopper className="size-4" />
               </span>
               <div>
-                <p className="text-[0.8rem] font-bold">🎉 100株達成 — リバランスの合図</p>
+                <p className="text-[0.8rem] font-bold">100株達成（リバランスの目安）</p>
                 <p className="mt-1.5 text-[0.68rem] leading-relaxed text-ink-soft">
-                  SMBC日興証券から引き出して売却し、楽天証券のNISAでオルカン／ロマン枠を買い直しましょう。単元化の目的は達成です。
+                  SMBC日興証券から引き出して売却し、楽天証券のNISAでオルカン／ロマン枠を買い直しましょう。
                 </p>
                 <Link
                   to="/assets"
@@ -117,13 +117,13 @@ export function HoldingCard({
             </p>
           </div>
           <div className="bg-canvas/35 px-2.5 py-2.5">
-            <p className="text-[0.5rem] leading-tight text-muted">毎月の購入</p>
+            <p className="text-[0.5rem] leading-tight text-muted">毎月の購入株数</p>
             <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
               {formatNumber(plan.monthlyShares, 1)}株
             </p>
           </div>
           <div className="bg-canvas/35 px-2.5 py-2.5">
-            <p className="text-[0.5rem] leading-tight text-muted">月の購入額</p>
+            <p className="text-[0.5rem] leading-tight text-muted">毎月の購入額</p>
             <p className="mt-1 text-[0.7rem] font-bold text-ink tabular">
               {formatYen(plan.monthlyPurchaseAmount)}
             </p>
@@ -170,7 +170,7 @@ export function HoldingCard({
             )}
             <span aria-hidden="true">・</span>
             <span>
-              奨励金 {formatPercent(plan.incentiveRate, 0)} 込み・株価{' '}
+              奨励金 {formatPercent(plan.incentiveRate, 0)} 込み、株価{' '}
               {formatYen(plan.price)}
             </span>
           </span>

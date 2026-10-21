@@ -16,7 +16,7 @@ export const Route = createFileRoute('/api/gear/upload')({
         const file = formData.get('file')
 
         if (!(file instanceof File)) {
-          return new Response('画像ファイルが必要です', { status: 400 })
+          return new Response('画像ファイルを選択してください', { status: 400 })
         }
         if (!ALLOWED_TYPES.has(file.type)) {
           return new Response('対応していない画像形式です', { status: 415 })

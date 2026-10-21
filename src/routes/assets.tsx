@@ -122,7 +122,7 @@ function AssetsPage() {
       <PageHeader
         kicker="Portfolio ledger"
         title="資産の記録"
-        description="月に一度だけ、静かに数字を写す。積み上がりは、あとから効いてくる。"
+        description="毎月の資産額を記録し、純資産とNISAの進捗を確認します。"
         actions={
           <>
             <Button variant="outline" onClick={() => openNew()}>
@@ -139,7 +139,7 @@ function AssetsPage() {
 
       <MetricGrid>
         <MetricCard
-          label="真の純資産"
+          label="純資産（機材込み）"
           value={formatYen(portfolio.total)}
           icon={Wallet}
           hint={latest ? `${formatYearMonth(latest.yearMonth)} 時点` : '記録待ち'}
@@ -157,7 +157,7 @@ function AssetsPage() {
           icon={Target}
           tone="brand"
           badge={<Badge variant="brand">{formatPercent(nisa.progress)}</Badge>}
-          hint={`残り ${formatYen(nisa.remaining)} / 目標 1,800万円`}
+          hint={`残り ${formatYen(nisa.remaining)} / 目標 ${formatYen(nisa.targetAmount)}`}
         />
         <MetricCard
           label="先月比"
@@ -200,9 +200,9 @@ function AssetsPage() {
           {rows.length === 0 ? (
             <EmptyState
               icon={Wallet}
-              title="最初のスナップショットを記録しましょう"
-              description="現預金・投資信託・持株会・機材の評価額を1ヶ月分入力すると、ここから資産の物語が始まります。"
-              action={<Button onClick={() => openNew(null)}>記録をはじめる</Button>}
+              title="スナップショットがありません"
+              description="現預金・投資信託・持株会・機材の評価額を1ヶ月分入力すると、月次推移が表示されます。"
+              action={<Button onClick={() => openNew(null)}>最初の記録を追加</Button>}
             />
           ) : (
             <>

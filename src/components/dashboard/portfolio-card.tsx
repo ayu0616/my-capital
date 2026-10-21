@@ -17,6 +17,7 @@ export function PortfolioCard({
   className?: string
 }) {
   const visibleSlices = portfolio.slices.filter((slice) => slice.amount > 0)
+  const hasData = portfolio.total > 0
   const over = portfolio.isFujitsuOverLimit
 
   return (
@@ -26,9 +27,18 @@ export function PortfolioCard({
           <CardKicker>Allocation</CardKicker>
           <CardTitle className="mt-1.5">純資産の内訳</CardTitle>
         </div>
-        <Badge variant={over ? 'danger' : 'success'} className="gap-1">
-          {over ? <ShieldAlert className="size-3" /> : <ShieldCheck className="size-3" />}
-          {over ? '富士通が上限超過' : '安全圏'}
+        <Badge
+          variant={!hasData ? 'neutral' : over ? 'danger' : 'success'}
+          className="gap-1"
+        >
+          {!hasData ? (
+            <PieIcon className="size-3" />
+          ) : over ? (
+            <ShieldAlert className="size-3" />
+          ) : (
+            <ShieldCheck className="size-3" />
+          )}
+          {!hasData ? 'データなし' : over ? '富士通が上限超過' : '上限内'}
         </Badge>
       </CardHeader>
 
@@ -37,7 +47,7 @@ export function PortfolioCard({
           <EmptyState
             icon={PieIcon}
             title="内訳はまだありません"
-            description="資産スナップショットを記録すると、ポートフォリオが描かれます。"
+            description="資産スナップショットを記録すると、ポートフォリオが表示されます。"
             className="flex-1"
           />
         ) : (
@@ -73,7 +83,7 @@ export function PortfolioCard({
                   {formatCompactYen(portfolio.total)}
                 </p>
                 <p className="mt-0.5 text-[0.55rem] text-muted">
-                  {visibleSlices.length} アセット
+                  {visibleSlices.length}項目
                 </p>
               </div>
             </div>
@@ -106,7 +116,7 @@ export function PortfolioCard({
               <span className={cn('font-semibold', over ? 'text-danger' : 'text-ink')}>
                 {formatPercent(portfolio.fujitsuRatio)}
               </span>{' '}
-              / 安全弁 {formatPercent(portfolio.threshold, 0)}
+              / 警告ライン {formatPercent(portfolio.threshold, 0)}
             </p>
           </>
         )}

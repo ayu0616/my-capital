@@ -87,13 +87,13 @@ function LoginPage() {
             PRIVATE LEDGER
           </p>
           <h1 className="mt-4 font-display text-[2.1rem] leading-[1.28] font-medium tracking-tight text-white sm:text-[2.6rem]">
-            数字は、あなたの
+            資産・機材・自己投資
             <br />
-            静かな伴走者。
+            まとめて管理。
           </h1>
           <p className="mt-5 max-w-sm text-sm leading-[1.9] text-white/55">
-            資産も、機材も、学びも。人生の選択をひとつの台帳に。
-            この場所は、あなただけのものです。
+            金融資産、持株会、カメラ機材、自己投資の記録を、
+            この台帳で確認できます。
           </p>
         </div>
 
@@ -101,7 +101,7 @@ function LoginPage() {
           {[
             ['金融資産', 'NISA / 現金'],
             ['実物資産', 'カメラ機材'],
-            ['人的資本', '資格 / キャリア'],
+            ['自己投資', '資格 / キャリア'],
           ].map(([title, sub]) => (
             <div key={title}>
               <p className="text-[0.62rem] font-semibold text-white/80">{title}</p>
@@ -122,10 +122,10 @@ function LoginPage() {
             AUTHENTICATION
           </p>
           <h2 className="mt-2 font-display text-[1.9rem] leading-tight font-semibold tracking-tight text-ink">
-            おかえりなさい。
+            ログイン
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            この台帳を開くためのパスコードを入力してください。
+            パスコードを入力してください。
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -166,7 +166,7 @@ function LoginPage() {
                   確認中…
                 </>
               ) : (
-                '台帳を開く'
+                'ログイン'
               )}
             </Button>
           </form>
@@ -175,7 +175,7 @@ function LoginPage() {
             <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-muted" />
             <p className="text-[0.62rem] leading-relaxed text-muted">
               セッションは30日間、この端末にだけ保持されます。
-              パスコードはサーバー側の secret で管理され、画面には保存されません。
+              パスコードはサーバー側で管理され、画面には保存されません。
             </p>
           </div>
 

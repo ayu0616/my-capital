@@ -30,7 +30,7 @@ function newId() {
 /* -------------------------------------------------------------------------- */
 
 const settingsInput = z.object({
-  nickname: z.string().trim().min(1, '名前を入力してください').max(40),
+  nickname: z.string().trim().min(1, 'ニックネームを入力してください').max(40),
   birthDate: dateString,
   nisaTargetAmount: z.number().int().min(1).max(1_000_000_000),
   nisaTargetAge: z.number().int().min(18).max(80),

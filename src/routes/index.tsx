@@ -55,15 +55,9 @@ function Dashboard() {
   return (
     <>
       <PageHeader
-        kicker={`Overview · ${latest ? formatYearMonth(latest.yearMonth) : 'First step'}`}
-        title={
-          <span>
-            おかえりなさい、
-            <br className="sm:hidden" />
-            {settings.nickname}さん。
-          </span>
-        }
-        description="今日の数字は、未来の余白。大きく変えず、淡々と積み上げる。"
+        kicker={`Overview${latest ? ` · ${formatYearMonth(latest.yearMonth)}` : ''}`}
+        title={<span>{settings.nickname}さんの資産状況</span>}
+        description="金融資産・持株会・機材・自己投資の現在の状況をまとめています。"
         actions={
           <>
             <Link to="/assets" className={buttonVariants({ size: 'md' })}>

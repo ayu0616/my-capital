@@ -141,7 +141,7 @@ export function GearDialog({
       onOpenChange={onOpenChange}
       size="lg"
       title={gear ? '機材を編集' : '機材を追加'}
-      description="購入額と現在の買取目安を登録すると、真の純資産に反映されます。"
+      description="購入額と現在の買取目安を登録すると、純資産に反映されます。"
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -255,7 +255,7 @@ export function GearDialog({
           <Field
             label="現在の買取目安"
             htmlFor="gear-resale"
-            hint="マップカメラ等の中古相場を参考に。"
+            hint="マップカメラなどの中古買取相場を参考にしてください。"
           >
             <MoneyInput
               id="gear-resale"
@@ -275,7 +275,7 @@ export function GearDialog({
               </p>
             </div>
             <div>
-              <p className="text-[0.55rem] text-muted">現在の価値</p>
+              <p className="text-[0.55rem] text-muted">買取目安</p>
               <p className="mt-1 text-[0.72rem] font-semibold tabular text-ink">
                 {formatYen(resale)}
               </p>

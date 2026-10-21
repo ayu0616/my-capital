@@ -22,8 +22,8 @@ export function GearPreview({
     <Card className={cn('flex flex-col', className)}>
       <CardHeader className="items-start">
         <div>
-          <CardKicker>Gear collection</CardKicker>
-          <CardTitle className="mt-1.5">機材コレクション</CardTitle>
+          <CardKicker>Gear ledger</CardKicker>
+          <CardTitle className="mt-1.5">カメラ機材</CardTitle>
         </div>
         <Link
           to="/gear"
@@ -38,8 +38,8 @@ export function GearPreview({
         {gears.length === 0 ? (
           <EmptyState
             icon={Camera}
-            title="機材を登録しましょう"
-            description="レンズやボディの現在価値を記録すると、真の純資産に反映されます。"
+            title="機材が登録されていません"
+            description="レンズやボディの購入額と買取目安を記録すると、機材の買取目安が純資産に反映されます。"
             action={
               <Link
                 to="/gear"
@@ -80,7 +80,7 @@ export function GearPreview({
                 </p>
               </div>
               <div>
-                <p className="text-[0.52rem] text-muted">現在の価値</p>
+                <p className="text-[0.52rem] text-muted">買取目安</p>
                 <p className="mt-1 text-[0.72rem] font-semibold text-ink tabular">
                   {formatYen(summary.resaleTotal)}
                 </p>
@@ -93,7 +93,7 @@ export function GearPreview({
               </div>
             </div>
             <p className="mt-2 text-[0.55rem] leading-relaxed text-muted">
-              {summary.count}点を保有。機材は「使うほど価値が減る」ではなく、記録で見える化。
+              {summary.count}点を保有。現在の買取目安から、機材の残存率を計算しています。
             </p>
           </>
         )}

@@ -216,7 +216,7 @@ export function SnapshotDialog({
           ? `${formatYearMonth(snapshot.yearMonth)} の記録を更新します。`
           : isBlankNew
             ? '記録する年月を選んでください。金額は最新月の値を初期値にしています。'
-            : '月末の評価額を入力すると、純資産とポートフォリオに反映されます。'
+            : '各項目の評価額を入力すると、純資産とポートフォリオに反映されます。'
       }
       footer={
         <>
@@ -300,7 +300,7 @@ export function SnapshotDialog({
                 placeholder="0"
               />
             </Field>
-            <Field label="NISA累計元本" htmlFor="snap-principal" hint="1,800万円の進捗に使う簿価ベースの金額。">
+            <Field label="NISA累計元本" htmlFor="snap-principal" hint="NISAの目標額に対する進捗に使う簿価ベースの金額。">
               <MoneyInput
                 id="snap-principal"
                 value={form.nisaContributedPrincipal}
@@ -383,7 +383,7 @@ export function SnapshotDialog({
             <Field
               label="繰越金"
               htmlFor="snap-holding-carryover"
-              hint="次回の購入に充当される持株会内の現金。"
+              hint="次回の購入に使う、持株会内の現金。"
             >
               <MoneyInput
                 id="snap-holding-carryover"
@@ -406,9 +406,9 @@ export function SnapshotDialog({
           </div>
           <FieldGrid>
             <Field
-              label="機材の残存価値"
+              label="機材の買取目安"
               htmlFor="snap-gear"
-              hint="機材台帳の現在価値の合計が初期値です。"
+              hint="機材台帳の買取目安の合計が初期値です。"
             >
               <MoneyInput
                 id="snap-gear"
@@ -433,7 +433,7 @@ export function SnapshotDialog({
             id="snap-notes"
             value={form.notes}
             onChange={(event) => update('notes', event.target.value)}
-            placeholder="例: ボーナスから現金を厚めに。積立設定を変更した など"
+            placeholder="例: ボーナスで現金を増やした。積立設定を変更した。"
             maxLength={1000}
           />
         </Field>

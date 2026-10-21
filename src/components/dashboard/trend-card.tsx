@@ -56,8 +56,8 @@ export function TrendCard({
         {series.length < 2 ? (
           <EmptyState
             icon={TrendingUp}
-            title="まだ推移を描けません"
-            description="2ヶ月分以上のスナップショットを記録すると、資産の流れがここに表示されます。"
+            title="まだ推移がありません"
+            description="2ヶ月分以上のスナップショットを記録すると、資産の推移がここに表示されます。"
             className="flex-1"
           />
         ) : (
@@ -66,7 +66,7 @@ export function TrendCard({
               <div className="flex items-center gap-4 text-[0.65rem] font-medium text-muted">
                 <span className="flex items-center gap-1.5">
                   <span className="size-1.5 rounded-full bg-gold" />
-                  真の純資産
+                  純資産（機材込み）
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-px w-3 bg-brand" />
@@ -116,7 +116,7 @@ export function TrendCard({
                   <Area
                     type="monotone"
                     dataKey="total"
-                    name="真の純資産"
+                    name="純資産（機材込み）"
                     stroke="#b3823d"
                     strokeWidth={2.2}
                     fill="url(#netWorthFill)"

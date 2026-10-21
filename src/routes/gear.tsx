@@ -84,7 +84,7 @@ function GearPage() {
       <PageHeader
         kicker="Gear ledger"
         title="機材台帳"
-        description="使い込むほど、価値は手元に残る。レンズもボディも、資産として記録する。"
+        description="カメラ機材の購入額と現在の買取目安を記録し、純資産に反映します。"
         actions={
           <Button onClick={openNew}>
             <Plus className="size-3.5" />
@@ -102,7 +102,7 @@ function GearPage() {
           hint={`${summary.count}点の機材`}
         />
         <MetricCard
-          label="現在のリセール"
+          label="現在の買取目安"
           value={formatYen(summary.resaleTotal)}
           icon={CircleDollarSign}
           tone="gold"
@@ -115,17 +115,17 @@ function GearPage() {
           tone={gainTone}
           badge={
             <Badge variant={summary.gain >= 0 ? 'success' : 'warning'}>
-              {formatPercent(summary.retentionRate, 0)} 残存
+              {formatPercent(summary.retentionRate, 0)} 残存率
             </Badge>
           }
-          hint="現在価値 − 購入価格"
+          hint="現在の買取目安 − 購入価格"
         />
         <MetricCard
           label="残存率"
           value={formatPercent(summary.retentionRate, 1)}
           icon={Camera}
           tone="brand"
-          hint="機材は使っても、価値はゼロにならない"
+          hint="現在の買取目安 ÷ 購入価格"
         />
       </MetricGrid>
 
@@ -134,9 +134,9 @@ function GearPage() {
         <Card className="lg:col-span-7">
           <CardHeader>
             <div>
-              <CardTitle>カテゴリー別の現在価値</CardTitle>
+              <CardTitle>カテゴリー別の購入額と買取目安</CardTitle>
               <p className="mt-1 text-[0.68rem] text-muted">
-                購入総額から、いまいくら残っているか。
+                カテゴリーごとの購入額と現在の買取目安。
               </p>
             </div>
             <Badge variant="gold">{formatYen(summary.resaleTotal)}</Badge>
@@ -173,7 +173,7 @@ function GearPage() {
               })}
             </div>
             <p className="mt-5 border-t border-line/70 pt-3 text-[0.6rem] leading-relaxed text-muted">
-              機材の価値は毎月のスナップショットにも反映されます。買取価格が変わったら、この台帳を更新しましょう。
+              機材の買取目安は、月次スナップショットの機材価値に反映されます。買取価格が変わったら台帳を更新してください。
             </p>
           </CardContent>
         </Card>
@@ -181,7 +181,7 @@ function GearPage() {
 
       <div className="mt-8">
         <SectionHeading
-          title="コレクション"
+          title="機材一覧"
           description={`${gears.length}点を保有中`}
           actions={
             <div className="flex items-center gap-2">
@@ -212,8 +212,8 @@ function GearPage() {
         {gears.length === 0 ? (
           <EmptyState
             icon={Camera}
-            title="機材を登録しましょう"
-            description="お気に入りのレンズやボディを登録すると、現在のリセール価値が真の純資産に加わります。"
+            title="機材が登録されていません"
+            description="レンズやボディの購入額と買取目安を登録すると、機材の買取目安が純資産に加わります。"
             action={<Button onClick={openNew}>最初の機材を追加</Button>}
           />
         ) : filtered.length === 0 ? (
@@ -268,7 +268,7 @@ function GearPage() {
 
                     <div className="mt-3 flex items-end justify-between gap-2">
                       <div>
-                        <p className="text-[0.52rem] text-muted">現在のリセール</p>
+                        <p className="text-[0.52rem] text-muted">現在の買取目安</p>
                         <p className="mt-0.5 font-display text-[1.1rem] font-semibold leading-none text-ink tabular">
                           {formatYen(gear.resaleValue)}
                         </p>

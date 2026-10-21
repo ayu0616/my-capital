@@ -39,10 +39,10 @@ export function NetWorthHero({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[0.56rem] font-bold uppercase tracking-[0.26em] text-[#d7b87d]">
-            True net worth
+            Net worth
           </p>
           <p className="mt-1.5 text-[0.7rem] text-white/50">
-            真の純資産 — 金融資産 ＋ 機材の現在価値
+            純資産（機材込み）
           </p>
         </div>
         {yearMonth ? (
@@ -104,7 +104,7 @@ export function NetWorthHero({
         </div>
         <div className="glass-dark rounded-xl px-3.5 py-3">
           <p className="text-[0.58rem] font-medium tracking-wide text-white/45">
-            機材の現在価値
+            機材の買取目安
           </p>
           <p className="mt-1 text-[0.94rem] font-semibold tabular text-white/95">
             {formatYen(portfolio.gearValue)}

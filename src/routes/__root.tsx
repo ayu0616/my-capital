@@ -35,7 +35,7 @@ export const Route = createRootRoute({
       {
         name: 'description',
         content:
-          '金融資産・持株会・カメラ機材・人的資本をひとつに。20代〜30代のための統合パーソナルダッシュボード。',
+          '金融資産、持株会、カメラ機材、自己投資をまとめて管理する個人用ダッシュボード。',
       },
       { name: 'theme-color', content: '#0d211a' },
       { name: 'apple-mobile-web-app-title', content: 'Asset & Life' },

@@ -82,7 +82,7 @@ export function InvestmentDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={investment ? '自己投資を編集' : '自己投資を記録'}
-      description="資格・講座・書籍。学びに使ったお金は、人的資本への投資です。"
+      description="資格・講座・書籍の費用を記録します。"
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

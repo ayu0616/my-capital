@@ -16,8 +16,8 @@ export function HumanCapitalCard({
     <Card className={cn('flex flex-col', className)}>
       <CardHeader className="items-start">
         <div>
-          <CardKicker>Human capital</CardKicker>
-          <CardTitle className="mt-1.5">学びのリターン</CardTitle>
+          <CardKicker>Self-investment</CardKicker>
+          <CardTitle className="mt-1.5">自己投資のROI</CardTitle>
         </div>
         <span className="flex size-8 items-center justify-center rounded-xl border border-brand/10 bg-brand-soft text-brand">
           <GraduationCap className="size-4" />
@@ -26,14 +26,14 @@ export function HumanCapitalCard({
 
       <CardContent className="flex flex-1 flex-col">
         <div>
-          <p className="text-[0.58rem] font-medium text-muted">自己投資ROI（単純計算）</p>
+          <p className="text-[0.58rem] font-medium text-muted">ROI（単純計算）</p>
           <p className="mt-1 font-display text-[1.9rem] font-semibold leading-none text-ink tabular">
             {summary.roi == null ? '—' : `+${formatPercent(summary.roi, 0)}`}
           </p>
           <p className="mt-1.5 text-[0.6rem] leading-relaxed text-muted">
             {summary.annualGain > 0
-              ? `年収増 ${formatYen(summary.annualGain)} を投資コストで割った値`
-              : '昇格・昇給を記録するとリターンが見えます'}
+              ? `年収増 ${formatYen(summary.annualGain)} ÷ 投資コスト`
+              : '昇格・昇給を記録するとROIを計算できます'}
           </p>
         </div>
 

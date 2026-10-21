@@ -49,7 +49,7 @@ export function LensFundCard({
       <CardHeader className="items-start">
         <div>
           <CardKicker>Gear fund</CardKicker>
-          <CardTitle className="mt-1.5">次の一本まで</CardTitle>
+          <CardTitle className="mt-1.5">レンズ積立</CardTitle>
         </div>
         <span className="flex size-8 items-center justify-center rounded-xl border border-gold/15 bg-gold-soft text-gold-strong">
           <Aperture className="size-4" />
@@ -68,7 +68,7 @@ export function LensFundCard({
             {fund.isComplete ? '購入できます' : formatPercent(fund.progress)}
           </Badge>
           <span className="text-[0.58rem] text-muted">
-            {fund.isComplete ? 'ご褒美のタイミング' : `あと ${formatYen(fund.remaining)}`}
+            {fund.isComplete ? '目標額に到達' : `あと ${formatYen(fund.remaining)}`}
           </span>
         </div>
 
@@ -80,7 +80,7 @@ export function LensFundCard({
           label="レンズ積立の進捗"
         />
         <p className="mt-2 text-[0.58rem] leading-relaxed text-muted">
-          半年に1本。ボーナスから少しずつ、機材基金へ。
+          レンズ購入のために積み立てた金額です。
         </p>
 
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-line/70 pt-3.5">
@@ -106,7 +106,7 @@ export function LensFundCard({
         open={open}
         onOpenChange={setOpen}
         title="レンズ積立を更新"
-        description="いま貯まっている金額を入力してください。"
+        description="現在の積立額を入力してください。"
         size="sm"
         footer={
           <>
@@ -122,7 +122,7 @@ export function LensFundCard({
         <Field
           label="現在の積立額"
           htmlFor="gear-fund-saved"
-          hint={`目標 ${formatYen(settings.gearFundTarget)} に対しての進捗を表示します。`}
+          hint={`目標 ${formatYen(settings.gearFundTarget)} に対する進捗を表示します。`}
         >
           <MoneyInput
             id="gear-fund-saved"

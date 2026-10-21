@@ -72,7 +72,7 @@ export function CareerDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={event ? 'キャリアイベントを編集' : 'キャリアイベントを記録'}
-      description="昇格・昇給・転職による年収の増加を記録すると、人的資本のROIを計算できます。"
+      description="昇格・昇給・転職による年収の増加を記録すると、ROIを計算できます。"
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

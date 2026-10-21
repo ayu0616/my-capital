@@ -25,7 +25,7 @@ export function NisaCard({
       <CardHeader>
         <div>
           <CardKicker>New NISA · Lifetime</CardKicker>
-          <CardTitle className="mt-1.5">1,800万円の器</CardTitle>
+          <CardTitle className="mt-1.5">NISAの積立状況</CardTitle>
         </div>
         <Badge variant={plan.isComplete ? 'success' : 'brand'}>{percent}</Badge>
       </CardHeader>
@@ -38,7 +38,7 @@ export function NisaCard({
               <span className="ml-0.5 text-[0.8rem] text-muted">%</span>
             </span>
             <span className="mt-1 text-[0.48rem] font-bold tracking-[0.18em] text-muted">
-              COMPLETED
+              PROGRESS
             </span>
           </ProgressRing>
 
@@ -87,7 +87,7 @@ export function NisaCard({
               <p className="pb-1 text-right text-[0.56rem] leading-relaxed text-brand-ink/55">
                 現在 {plan.age}歳
                 <br />
-                非課税枠の消化率
+                目標 {plan.targetAge}歳
               </p>
             </div>
           </div>
@@ -102,8 +102,8 @@ export function NisaCard({
           </div>
           <p className="mt-2 text-[0.6rem] leading-relaxed text-muted">
             {plan.isComplete
-              ? '1,800万円の非課税枠をすべて使い切りました。'
-              : `このペースなら ${formatMonthEta(plan.targetDate)} に到達。毎月の積立額は設定から調整できます。`}
+              ? `設定した目標額（${formatCompactYen(plan.targetAmount)}）に到達しました。`
+              : '目標額と目標年齢から、必要な月額を計算しています。'}
           </p>
         </div>
       </CardContent>

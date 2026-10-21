@@ -65,7 +65,7 @@ export function ThemeToggle() {
       size="icon-sm"
       onClick={toggleMode}
       aria-label={`${label}。クリックで切り替え`}
-      title={`${label} — クリックで切り替え`}
+      title={`${label}。クリックで切り替え`}
       className="rounded-full border border-line/80 bg-surface/60"
     >
       <Icon className="size-[0.95rem]" />

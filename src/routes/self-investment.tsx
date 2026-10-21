@@ -111,9 +111,9 @@ function SelfInvestmentPage() {
   return (
     <>
       <PageHeader
-        kicker="Human capital"
+        kicker="Self-investment"
         title="自己投資"
-        description="資格も、講座も、本も。学びにお金を使うことは、未来の自分への出資。"
+        description="資格・講座・書籍の費用と、昇格・昇給による年収の増加を記録します。"
         actions={
           <>
             <Button variant="outline" onClick={() => openCareer(null)}>
@@ -134,7 +134,7 @@ function SelfInvestmentPage() {
           value={formatYen(summary.totalCost)}
           icon={GraduationCap}
           tone="ink"
-          hint={`${summary.count}件の学び`}
+          hint={`${summary.count}件の記録`}
         />
         <MetricCard
           label="年収の増加"
@@ -144,7 +144,7 @@ function SelfInvestmentPage() {
           hint={`${careerEvents.length}件のキャリアイベント`}
         />
         <MetricCard
-          label="投資ROI"
+          label="自己投資ROI"
           value={
             summary.roi == null ? '—' : `+${formatPercent(summary.roi, 0)}`
           }
@@ -161,7 +161,7 @@ function SelfInvestmentPage() {
           }
           icon={Timer}
           tone="muted"
-          hint="単純計算 · 税金・手取りは考慮せず"
+          hint="単純計算。税金・手取りは考慮していません。"
         />
       </MetricGrid>
 
@@ -171,7 +171,7 @@ function SelfInvestmentPage() {
             <div>
               <CardTitle>投資の内訳</CardTitle>
               <p className="mt-1 text-[0.68rem] text-muted">
-                何に、どれだけ使ったか。
+                カテゴリー別の投資額。
               </p>
             </div>
             <Badge variant="gold">ROI</Badge>
@@ -188,8 +188,8 @@ function SelfInvestmentPage() {
               </p>
               <p className="mt-2 text-[0.62rem] leading-relaxed text-brand-ink/65">
                 {summary.annualGain > 0
-                  ? `${formatYen(summary.totalCost)} の投資で、年間 ${formatYen(summary.annualGain)} のリターン。月あたり ${formatYen(summary.monthlyGain)}。`
-                  : 'キャリアイベントを記録すると、投資対効果が見えてきます。'}
+                  ? `投資額 ${formatYen(summary.totalCost)}、年収増 ${formatYen(summary.annualGain)}（月あたり ${formatYen(summary.monthlyGain)}）。`
+                  : 'キャリアイベントを記録するとROIを計算できます。'}
               </p>
             </div>
 
@@ -238,7 +238,7 @@ function SelfInvestmentPage() {
             <div>
               <CardTitle>キャリアイベント</CardTitle>
               <p className="mt-1 text-[0.68rem] text-muted">
-                昇格・昇給の履歴が、ROIの根拠になります。
+                昇格・昇給の履歴は、ROIの計算に使います。
               </p>
             </div>
             <Button
@@ -254,8 +254,8 @@ function SelfInvestmentPage() {
             {careerEvents.length === 0 ? (
               <EmptyState
                 icon={TrendingUp}
-                title="キャリアの節目を記録しましょう"
-                description="昇格や昇給のタイミングと年収の増加額を登録すると、自己投資のリターンが計算できます。"
+                title="キャリアイベントがありません"
+                description="昇格や昇給の日付と年収の増加額を登録すると、ROIを計算できます。"
                 action={
                   <Button onClick={() => openCareer(null)}>
                     キャリアイベントを追加
@@ -311,7 +311,7 @@ function SelfInvestmentPage() {
       <Card className="mt-4">
         <CardHeader className="items-center">
           <div>
-            <CardTitle>学びの記録</CardTitle>
+            <CardTitle>自己投資の記録</CardTitle>
             <p className="mt-1 text-[0.68rem] text-muted">
               {investments.length}件 · 累計 {formatYen(summary.totalCost)}
             </p>
@@ -347,8 +347,12 @@ function SelfInvestmentPage() {
           {filtered.length === 0 ? (
             <EmptyState
               icon={BookOpen}
-              title={investments.length === 0 ? '最初の学びを記録しましょう' : 'このカテゴリーは空です'}
-              description="資格・Udemy・書籍の費用を記録すると、人的資本の投資対効果が見えてきます。"
+              title={investments.length === 0 ? '自己投資の記録がありません' : 'このカテゴリーは空です'}
+              description={
+                investments.length === 0
+                  ? '資格・Udemy・書籍の費用を記録すると、カテゴリー別の内訳とROIを確認できます。'
+                  : 'ほかのカテゴリーを選ぶか、このカテゴリーの記録を追加してください。'
+              }
               action={
                 <Button onClick={() => openInvestment(null)}>
                   自己投資を追加
@@ -467,7 +471,7 @@ function SelfInvestmentPage() {
       </Card>
 
       <p className="mt-4 rounded-2xl border border-line/70 bg-surface/40 px-4 py-3 text-[0.6rem] leading-relaxed text-muted">
-        ROIは「キャリアイベントの年収増加額の合計 ÷ 自己投資コスト」による単純計算です。実際の手取りや税金、時間コストは含みません。判断の目安として使ってください。
+        ROIは「キャリアイベントの年収増加額の合計 ÷ 自己投資コスト」による単純計算です。実際の手取り、税金、時間コストは含みません。判断の目安として使ってください。
       </p>
 
       <InvestmentDialog

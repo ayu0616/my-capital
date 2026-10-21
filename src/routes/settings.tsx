@@ -57,7 +57,7 @@ function SettingsPage() {
       <PageHeader
         kicker="Studio settings"
         title="設定"
-        description="数字の前提を整える。目標年齢も、株価も、いつでも静かに更新できます。"
+        description="目標額、目標年齢、株価など、計算に使う値を変更します。"
         actions={
           <Badge variant="outline" className="h-7 px-3">
             <LockKeyhole className="size-3" />
@@ -158,7 +158,7 @@ function ProfileForm({
           <CardKicker>Profile &amp; goals</CardKicker>
           <CardTitle className="mt-1.5">プロフィールと目標</CardTitle>
           <CardDescription>
-            NISAの到達時期や、富士通株の安全弁を決める前提です。
+            プロフィール、NISAの目標時期、富士通株の警告ラインを設定します。
           </CardDescription>
         </div>
       </CardHeader>
@@ -201,7 +201,7 @@ function ProfileForm({
               <Field
                 label="目標年齢"
                 htmlFor="set-nisa-age"
-                hint={`${formatMonthEta(targetDate)} が目標時期になります。`}
+                hint={`目標時期は ${formatMonthEta(targetDate)} です。`}
               >
                 <div className="relative">
                   <Input
@@ -223,7 +223,7 @@ function ProfileForm({
 
           <FieldGrid>
             <Field
-              label="富士通株の安全弁"
+              label="富士通株の警告ライン"
               htmlFor="set-alert"
               hint="総資産に対する比率がこれを超えると警告します。"
             >
@@ -246,7 +246,7 @@ function ProfileForm({
             <Field
               label="レンズ積立の目標"
               htmlFor="set-gear-target"
-              hint="半年に1本のための機材基金。"
+              hint="レンズ購入用の積立目標額。"
             >
               <MoneyInput
                 id="set-gear-target"
@@ -264,7 +264,7 @@ function ProfileForm({
 
           <div className="flex items-center justify-between gap-3 border-t border-line/70 pt-4">
             <p className="text-[0.58rem] leading-relaxed text-muted">
-              安全弁は現在{' '}
+              警告ラインは現在{' '}
               <span className="font-semibold text-ink">
                 {formatPercent(
                   Math.min(100, Math.max(1, parseNumberInput(alertPercent))) /
@@ -272,7 +272,7 @@ function ProfileForm({
                   0,
                 )}
               </span>{' '}
-              に設定されます。
+              です。
             </p>
             <Button type="submit" disabled={pending} size="md">
               {pending ? (
@@ -379,7 +379,7 @@ function HoldingForm({
           <CardKicker>Employee holding</CardKicker>
           <CardTitle className="mt-1.5">富士通・持株会</CardTitle>
           <CardDescription>
-            会社ページの記録と、100株までの積立プランを管理します。
+            会社ページの記録と、目標株数までの積立プランを管理します。
           </CardDescription>
         </div>
         <Badge variant="gold">{formatPercent(progress)}</Badge>
@@ -425,7 +425,7 @@ function HoldingForm({
               <Field
                 label="繰越金"
                 htmlFor="hold-carryover"
-                hint="持株会内に残っている、次回購入へ繰り越す現金。"
+                hint="次回の購入に使う、持株会内の現金。"
               >
                 <MoneyInput
                   id="hold-carryover"
@@ -529,7 +529,7 @@ function HoldingForm({
                 </p>
               </div>
               <div>
-                <p className="text-[0.52rem] text-muted">100株まで</p>
+                <p className="text-[0.52rem] text-muted">目標株数まで</p>
                 <p className="mt-0.5 text-[0.8rem] font-bold text-ink">
                   {remaining <= 0
                     ? '達成'
@@ -585,7 +585,7 @@ function DataCard({
           <CardKicker>Data &amp; environment</CardKicker>
           <CardTitle className="mt-1.5">データと環境</CardTitle>
           <CardDescription>
-            すべてのデータは Cloudflare D1 に保存されています。
+            数値とテキストは Cloudflare D1、機材画像は R2 に保存されています。
           </CardDescription>
         </div>
         <Database className="size-4 text-muted" />
@@ -666,7 +666,7 @@ function AboutCard({
       <CardHeader>
         <div>
           <CardKicker>About</CardKicker>
-          <CardTitle className="mt-1.5">4つの資産を、ひとつに。</CardTitle>
+          <CardTitle className="mt-1.5">管理している項目</CardTitle>
         </div>
         <Sparkles className="size-4 text-gold" />
       </CardHeader>
@@ -681,17 +681,17 @@ function AboutCard({
             {
               icon: Landmark,
               title: '持株会',
-              description: '富士通100株までのカウントダウン',
+              description: '富士通株の保有数と目標株数までの進捗',
             },
             {
               icon: Camera,
               title: '実物資産',
-              description: 'カメラ機材のリセール価値と残存率',
+              description: 'カメラ機材の買取目安と残存率',
             },
             {
               icon: GraduationCap,
-              title: '人的資本',
-              description: '資格・講座・書籍とキャリアのROI',
+              title: '自己投資',
+              description: '資格・講座・書籍の費用とキャリアイベントのROI',
             },
           ].map((item) => {
             const Icon = item.icon
@@ -714,12 +714,12 @@ function AboutCard({
         <div className="mt-5 rounded-xl border border-line/80 bg-canvas/35 p-3.5">
           <p className="flex items-center gap-1.5 text-[0.6rem] font-semibold text-ink">
             <ShieldCheck className="size-3.5 text-positive" />
-            {authRequired ? 'パスコード保護が有効です' : 'シングルユーザー設計'}
+            {authRequired ? 'パスコード保護が有効です' : 'パスコード保護は未設定です'}
           </p>
           <p className="mt-1.5 text-[0.56rem] leading-relaxed text-muted">
             {authRequired
               ? 'セッションは30日間有効です。共用端末では、使い終わったらログアウトしてください。'
-              : '個人用のダッシュボードです。公開する場合は APP_PASSCODE を secret に設定すると、ログイン画面が有効になります。'}
+              : '個人用のダッシュボードです。公開する場合は APP_PASSCODE を設定すると、ログイン画面が有効になります。'}
           </p>
           {authRequired ? (
             <Button
