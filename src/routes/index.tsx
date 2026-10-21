@@ -6,6 +6,7 @@ import { HumanCapitalCard } from '../components/dashboard/human-capital-card'
 import { LensFundCard } from '../components/dashboard/lens-fund-card'
 import { NetWorthHero } from '../components/dashboard/net-worth-hero'
 import { NisaCard } from '../components/dashboard/nisa-card'
+import { PensionCard } from '../components/dashboard/pension-card'
 import { PortfolioCard } from '../components/dashboard/portfolio-card'
 import { RecentSnapshots } from '../components/dashboard/recent-snapshots'
 import { StockGoalsCard } from '../components/dashboard/stock-goals-card'
@@ -20,6 +21,7 @@ import {
   buildMonthlySeries,
   buildNetWorthTrend,
   buildNisaPlan,
+  buildRetirementSummary,
   buildStockGoalSummaries,
   snapshotTotal,
 } from '../lib/finance'
@@ -45,6 +47,8 @@ function Dashboard() {
     investments,
     careerEvents,
     stockGoals,
+    retirement,
+    retirementAllocations,
   } = data
   const today = parseDateOnly(data.today)
   const latest = snapshots.at(-1) ?? null
@@ -60,6 +64,7 @@ function Dashboard() {
     gearSummary.resaleTotal,
     settings.fujitsuAlertThreshold,
     withdrawnShares,
+    retirement.balance,
   )
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
@@ -68,6 +73,10 @@ function Dashboard() {
   const humanCapital = buildHumanCapital(investments, careerEvents)
   const series = buildMonthlySeries(snapshots)
   const stockGoalSummaries = buildStockGoalSummaries(stockGoals, today)
+  const retirementSummary = buildRetirementSummary(
+    retirement,
+    retirementAllocations,
+  )
 
   return (
     <>
@@ -111,11 +120,22 @@ function Dashboard() {
         <HumanCapitalCard className="lg:col-span-4" summary={humanCapital} />
 
         {stockGoalSummaries.length > 0 ? (
-          <StockGoalsCard
+          <>
+            <StockGoalsCard
+              className="lg:col-span-8"
+              summaries={stockGoalSummaries}
+            />
+            <PensionCard
+              className="lg:col-span-4"
+              summary={retirementSummary}
+            />
+          </>
+        ) : (
+          <PensionCard
             className="lg:col-span-12"
-            summaries={stockGoalSummaries}
+            summary={retirementSummary}
           />
-        ) : null}
+        )}
 
         <GearPreview className="lg:col-span-8" gears={gears} summary={gearSummary} />
         <RecentSnapshots className="lg:col-span-4" snapshots={snapshots} />

@@ -22,13 +22,30 @@ INSERT OR REPLACE INTO stock_goals
 VALUES
   ('goal-jr-west', '9021', '西日本旅客鉄道（JR西日本）', '楽天証券', 100, 24, '2027-03-31', 1, 2850, 3150, 30000, '100株以上でJR西日本の株主優待。1株単位で購入できるため、期限までに100株を目指す。', '2026年10月時点で24株。優待条件は公式情報を確認。', 1, '2026-10-21T00:00:00.000Z', '2026-10-21T00:00:00.000Z');
 
+INSERT OR REPLACE INTO retirement_accounts
+  (id, provider, scheme_name, balance, total_contributed, monthly_contribution, employer_contribution, valued_at, notes, updated_at)
+VALUES
+  ('default', 'JIS&T', '会社型確定拠出年金', 1860000, 1440000, 12000, 8000, '2026-10-21', 'JIS&Tの評価額。本人と会社の拠出を含む。', '2026-10-21T00:00:00.000Z');
+
+DELETE FROM retirement_allocations;
+
+INSERT OR REPLACE INTO retirement_allocations
+  (id, account_id, label, ratio, sort_order)
+VALUES
+  ('alloc-foreign-stock', 'default', '外国株式', 50, 10),
+  ('alloc-domestic-stock', 'default', '国内株式', 20, 20),
+  ('alloc-foreign-bond', 'default', '外国債券', 15, 30),
+  ('alloc-domestic-bond', 'default', '国内債券', 10, 40),
+  ('alloc-cash', 'default', '現金・預金', 5, 50);
+
 INSERT OR REPLACE INTO financial_accounts
   (id, name, institution, kind, role, notes, sort_order, created_at, updated_at)
 VALUES
   ('rakuten-sec', '楽天証券', '楽天証券', 'brokerage', 'NISA・投資信託・個別株', 'NISAの積立と個別株の保有。保有資産CSVの取り込み先。', 10, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z'),
   ('smbc-nikko', 'SMBC日興証券', 'SMBC日興証券', 'brokerage', '持株会の引出し先', '富士通の持株会から引き出した株式を保管する口座。', 20, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z'),
   ('rakuten-bank', '楽天銀行', '楽天銀行', 'bank', 'メイン口座', '生活費と現金の中心。', 30, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z'),
-  ('smbc', 'SMBC', '三井住友銀行', 'bank', 'サブ口座', 'サブの預金口座。', 40, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z');
+  ('smbc', 'SMBC', '三井住友銀行', 'bank', 'サブ口座', 'サブの預金口座。', 40, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z'),
+  ('jist', 'JIS&T', 'JIS&T', 'pension', '会社の確定拠出年金', '会社型DC。評価額と拠出額は設定の確定拠出年金で管理します。', 50, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z');
 
 INSERT OR REPLACE INTO asset_snapshots
   (id, year_month, cash_amount, nisa_orkan_amount, nisa_sp500_amount, nisa_mutual_fund_amount, nisa_individual_stock_amount, nisa_other_asset_amount, securities_cash_amount, nisa_contributed_principal, fujitsu_roman_stock_shares, holding_stock_shares, withdrawn_holding_shares, holding_average_acquisition_price, holding_carryover_amount, fujitsu_current_price, gear_resale_amount, notes, created_at, updated_at)
@@ -45,6 +62,23 @@ VALUES
   ('snap-2026-08', '2026-08', 3130000, 0, 0, 11870000, 0, 0, 0, 11700000, 10, 65.6, 10, 3340, 4500, 3688, 570000, '機材の買取相場がやや回復', '2026-08-31T12:00:00.000Z', '2026-08-31T12:00:00.000Z'),
   ('snap-2026-09', '2026-09', 3260000, 0, 0, 12150000, 0, 0, 0, 11800000, 10, 66.5, 10, 3385, 4680, 3910, 571000, NULL, '2026-09-30T12:00:00.000Z', '2026-09-30T12:00:00.000Z'),
   ('snap-2026-10', '2026-10', 3180000, 0, 0, 12380000, 991600, 0, 120000, 11860000, 10, 67.4, 10, 3425, 4820, 3842, 610000, '楽天証券の保有資産CSVを取り込み', '2026-10-21T03:00:00.000Z', '2026-10-21T03:00:00.000Z');
+
+UPDATE asset_snapshots
+SET pension_balance = CASE year_month
+  WHEN '2025-11' THEN 1420000
+  WHEN '2025-12' THEN 1455000
+  WHEN '2026-01' THEN 1490000
+  WHEN '2026-02' THEN 1530000
+  WHEN '2026-03' THEN 1565000
+  WHEN '2026-04' THEN 1610000
+  WHEN '2026-05' THEN 1650000
+  WHEN '2026-06' THEN 1690000
+  WHEN '2026-07' THEN 1735000
+  WHEN '2026-08' THEN 1780000
+  WHEN '2026-09' THEN 1820000
+  WHEN '2026-10' THEN 1860000
+  ELSE pension_balance
+END;
 
 INSERT OR REPLACE INTO securities_import_batches
   (id, as_of_date, account, file_name, total_value, product_value, cash_value, stock_value, fund_value, other_value, fujitsu_value, holding_count, imported_at)

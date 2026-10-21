@@ -3,6 +3,7 @@ import { getDb } from '../db/client.server'
 import {
   DEFAULT_ACCOUNTS,
   DEFAULT_HOLDING,
+  DEFAULT_RETIREMENT,
   DEFAULT_SETTINGS,
 } from '../db/defaults'
 import {
@@ -13,6 +14,8 @@ import {
   financialAccounts,
   holdingStockStatus,
   holdingWithdrawals,
+  retirementAccounts,
+  retirementAllocations,
   securitiesHoldings,
   securitiesImportBatches,
   selfInvestments,
@@ -43,6 +46,21 @@ async function ensureBaseRows() {
     await db
       .insert(holdingStockStatus)
       .values({ ...DEFAULT_HOLDING, updatedAt: now })
+      .onConflictDoNothing()
+  }
+
+  const [retirement] = await db
+    .select()
+    .from(retirementAccounts)
+    .limit(1)
+  if (!retirement) {
+    await db
+      .insert(retirementAccounts)
+      .values({
+        ...DEFAULT_RETIREMENT,
+        valuedAt: toDateOnlyString(todayDateOnly()),
+        updatedAt: now,
+      })
       .onConflictDoNothing()
   }
 
@@ -94,6 +112,24 @@ export async function readStockGoals() {
     .orderBy(asc(stockGoals.targetDate), asc(stockGoals.createdAt))
 }
 
+export async function readRetirementAccount() {
+  const db = getDb()
+  const [row] = await db.select().from(retirementAccounts).limit(1)
+  if (!row) {
+    await ensureBaseRows()
+    const [created] = await db.select().from(retirementAccounts).limit(1)
+    return created
+  }
+  return row
+}
+
+export async function readRetirementAllocations() {
+  return getDb()
+    .select()
+    .from(retirementAllocations)
+    .orderBy(asc(retirementAllocations.sortOrder))
+}
+
 export async function fetchDashboardData() {
   await ensureBaseRows()
   const db = getDb()
@@ -106,6 +142,8 @@ export async function fetchDashboardData() {
     investments,
     events,
     goals,
+    retirement,
+    pensionAllocations,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -118,6 +156,8 @@ export async function fetchDashboardData() {
       .orderBy(desc(selfInvestments.completedAt)),
     db.select().from(careerEvents).orderBy(desc(careerEvents.occurredAt)),
     readStockGoals(),
+    readRetirementAccount(),
+    readRetirementAllocations(),
   ])
 
   return {
@@ -129,6 +169,8 @@ export async function fetchDashboardData() {
     investments,
     careerEvents: events,
     stockGoals: goals,
+    retirement,
+    retirementAllocations: pensionAllocations,
     today: toDateOnlyString(todayDateOnly()),
   }
 }
@@ -145,22 +187,30 @@ export async function fetchStockGoalsData() {
 export async function fetchAssetsData() {
   await ensureBaseRows()
   const db = getDb()
-  const [settings, holding, withdrawals, snapshots, gears, latestBatch] =
-    await Promise.all([
-      readSettings(),
-      readHolding(),
-      readHoldingWithdrawals(),
-      db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
-      db.select().from(cameraGears),
-      db
-        .select()
-        .from(securitiesImportBatches)
-        .orderBy(
-          desc(securitiesImportBatches.asOfDate),
-          desc(securitiesImportBatches.importedAt),
-        )
-        .limit(1),
-    ])
+  const [
+    settings,
+    holding,
+    withdrawals,
+    snapshots,
+    gears,
+    retirement,
+    latestBatch,
+  ] = await Promise.all([
+    readSettings(),
+    readHolding(),
+    readHoldingWithdrawals(),
+    db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
+    db.select().from(cameraGears),
+    readRetirementAccount(),
+    db
+      .select()
+      .from(securitiesImportBatches)
+      .orderBy(
+        desc(securitiesImportBatches.asOfDate),
+        desc(securitiesImportBatches.importedAt),
+      )
+      .limit(1),
+  ])
   const batch = latestBatch[0] ?? null
   const holdings = batch
     ? await db
@@ -180,6 +230,7 @@ export async function fetchAssetsData() {
     withdrawals,
     snapshots,
     gears,
+    retirement,
     securities: { batch, holdings },
     today: toDateOnlyString(todayDateOnly()),
   }
@@ -229,6 +280,8 @@ export async function fetchSettingsData() {
     investmentCount,
     securitiesCount,
     stockGoalCount,
+    retirement,
+    retirementAllocationRows,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -242,12 +295,16 @@ export async function fetchSettingsData() {
     db.select().from(selfInvestments),
     db.select().from(securitiesHoldings),
     db.select().from(stockGoals),
+    readRetirementAccount(),
+    readRetirementAllocations(),
   ])
   return {
     settings,
     holding,
     withdrawals,
     accounts,
+    retirement,
+    retirementAllocations: retirementAllocationRows,
     counts: {
       snapshots: snapshotCount.length,
       gears: gearCount.length,

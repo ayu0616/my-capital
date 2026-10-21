@@ -45,7 +45,7 @@ export function StockGoalsCard({
       </CardHeader>
 
       <CardContent className="pt-2">
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2">
           {visible.map((summary) => (
             <div
               key={summary.id}

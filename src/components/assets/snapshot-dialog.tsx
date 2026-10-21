@@ -24,6 +24,7 @@ type SnapshotFormValues = {
   nisaMutualFundAmount: string
   nisaIndividualStockAmount: string
   nisaOtherAssetAmount: string
+  pensionBalance: string
   nisaContributedPrincipal: string
   fujitsuRomanStockShares: string
   holdingStockShares: string
@@ -43,6 +44,7 @@ function valuesFromSnapshot(snapshot: AssetSnapshot): SnapshotFormValues {
     nisaMutualFundAmount: String(snapshot.nisaMutualFundAmount),
     nisaIndividualStockAmount: String(snapshot.nisaIndividualStockAmount),
     nisaOtherAssetAmount: String(snapshot.nisaOtherAssetAmount),
+    pensionBalance: String(snapshot.pensionBalance),
     nisaContributedPrincipal: String(snapshot.nisaContributedPrincipal),
     fujitsuRomanStockShares: String(snapshot.fujitsuRomanStockShares),
     holdingStockShares: String(snapshot.holdingStockShares),
@@ -63,6 +65,7 @@ function newValues(
   gearResaleTotal: number,
   yearMonth: string,
   withdrawnShares: number,
+  pensionBalanceFallback: number,
 ): SnapshotFormValues {
   return {
     yearMonth,
@@ -79,6 +82,9 @@ function newValues(
     nisaOtherAssetAmount: latest
       ? String(latest.nisaOtherAssetAmount)
       : '0',
+    pensionBalance: String(
+      (latest?.pensionBalance || pensionBalanceFallback) ?? 0,
+    ),
     nisaContributedPrincipal: latest
       ? String(latest.nisaContributedPrincipal)
       : '',
@@ -106,6 +112,7 @@ export function SnapshotDialog({
   holding,
   gearResaleTotal,
   withdrawnShares,
+  pensionBalanceFallback,
   defaultYearMonth = null,
 }: {
   open: boolean
@@ -116,6 +123,7 @@ export function SnapshotDialog({
   holding: HoldingStockStatus
   gearResaleTotal: number
   withdrawnShares: number
+  pensionBalanceFallback: number
   /** null = current month, '' = blank month picker, or a YYYY-MM value. */
   defaultYearMonth?: string | null
 }) {
@@ -127,6 +135,7 @@ export function SnapshotDialog({
       gearResaleTotal,
       defaultYearMonth ?? currentYearMonth(),
       withdrawnShares,
+      pensionBalanceFallback,
     ),
   )
   const [pending, setPending] = useState(false)
@@ -143,6 +152,7 @@ export function SnapshotDialog({
             gearResaleTotal,
             defaultYearMonth ?? currentYearMonth(),
             withdrawnShares,
+            pensionBalanceFallback,
           ),
     )
     setError(null)
@@ -153,6 +163,7 @@ export function SnapshotDialog({
     holding,
     gearResaleTotal,
     withdrawnShares,
+    pensionBalanceFallback,
     defaultYearMonth,
   ])
 
@@ -168,6 +179,7 @@ export function SnapshotDialog({
     const mutualFunds = parseYenInput(form.nisaMutualFundAmount)
     const individualStocks = parseYenInput(form.nisaIndividualStockAmount)
     const otherSecurities = parseYenInput(form.nisaOtherAssetAmount)
+    const pension = parseYenInput(form.pensionBalance)
     const shares =
       parseNumberInput(form.fujitsuRomanStockShares) +
       parseNumberInput(form.holdingStockShares) +
@@ -181,6 +193,7 @@ export function SnapshotDialog({
       mutualFunds +
       individualStocks +
       otherSecurities +
+      pension +
       shares * price +
       carryover +
       gear
@@ -214,6 +227,7 @@ export function SnapshotDialog({
             form.nisaIndividualStockAmount,
           ),
           nisaOtherAssetAmount: parseYenInput(form.nisaOtherAssetAmount),
+          pensionBalance: parseYenInput(form.pensionBalance),
           nisaContributedPrincipal: parseYenInput(
             form.nisaContributedPrincipal,
           ),
@@ -405,6 +419,20 @@ export function SnapshotDialog({
                 value={form.nisaOtherAssetAmount}
                 onChange={(event) =>
                   update('nisaOtherAssetAmount', event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field
+              label="確定拠出年金（JIS&T）"
+              htmlFor="snap-pension"
+              hint="設定の確定拠出年金の評価額を初期値にしています。この月の記録として保存します。"
+            >
+              <MoneyInput
+                id="snap-pension"
+                value={form.pensionBalance}
+                onChange={(event) =>
+                  update('pensionBalance', event.target.value)
                 }
                 placeholder="0"
               />

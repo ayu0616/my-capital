@@ -56,8 +56,16 @@ export const Route = createFileRoute('/assets')({
 })
 
 function AssetsPage() {
-  const { settings, holding, withdrawals, snapshots, gears, securities, today } =
-    Route.useLoaderData()
+  const {
+    settings,
+    holding,
+    withdrawals,
+    snapshots,
+    gears,
+    retirement,
+    securities,
+    today,
+  } = Route.useLoaderData()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<AssetSnapshot | null>(null)
@@ -84,6 +92,7 @@ function AssetsPage() {
     gearSummary.resaleTotal,
     settings.fujitsuAlertThreshold,
     withdrawnShares,
+    retirement.balance,
   )
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
@@ -156,7 +165,7 @@ function AssetsPage() {
           value={formatYen(portfolio.financialTotal)}
           icon={Landmark}
           tone="ink"
-          hint="現預金＋証券預り金＋投資信託＋個別株＋富士通＋引出し済み＋繰越金"
+          hint="現預金＋証券預り金＋投資信託＋個別株＋JIS&T＋富士通＋引出し済み＋繰越金"
         />
         <MetricCard
           label="NISA累計元本"
@@ -220,7 +229,7 @@ function AssetsPage() {
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[1000px] border-collapse text-left">
+                <table className="w-full min-w-[1120px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-line text-[0.56rem] font-bold uppercase tracking-[0.12em] text-muted">
                       <th className="py-2.5 pr-3 font-bold">年月</th>
@@ -228,6 +237,7 @@ function AssetsPage() {
                       <th className="px-3 py-2.5 text-right font-bold">証券預り金</th>
                       <th className="px-3 py-2.5 text-right font-bold">投資信託</th>
                       <th className="px-3 py-2.5 text-right font-bold">個別株・他</th>
+                      <th className="px-3 py-2.5 text-right font-bold">確定拠出年金</th>
                       <th className="px-3 py-2.5 text-right font-bold">NISA元本</th>
                       <th className="px-3 py-2.5 text-right font-bold">富士通</th>
                       <th className="px-3 py-2.5 text-right font-bold">機材</th>
@@ -271,6 +281,9 @@ function AssetsPage() {
                               snapshot.nisaIndividualStockAmount +
                                 snapshot.nisaOtherAssetAmount,
                             )}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
+                            {formatYen(snapshot.pensionBalance)}
                           </td>
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
                             {formatYen(snapshot.nisaContributedPrincipal)}
@@ -355,6 +368,9 @@ function AssetsPage() {
                               snapshot.nisaOtherAssetAmount,
                           )}
                         </span>
+                        <span className="rounded-full bg-canvas/70 px-2 py-0.5">
+                          JIS&amp;T {formatYen(snapshot.pensionBalance)}
+                        </span>
                         {snapshot.withdrawnHoldingShares > 0 ? (
                           <span className="rounded-full bg-canvas/70 px-2 py-0.5">
                             引出し {snapshot.withdrawnHoldingShares.toFixed(1)}株
@@ -405,6 +421,7 @@ function AssetsPage() {
         holding={holding}
         gearResaleTotal={gearSummary.resaleTotal}
         withdrawnShares={withdrawnShares}
+        pensionBalanceFallback={retirement.balance}
         defaultYearMonth={newMonth}
       />
 

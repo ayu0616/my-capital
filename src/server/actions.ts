@@ -9,6 +9,8 @@ import {
   careerEvents,
   holdingStockStatus,
   holdingWithdrawals,
+  retirementAccounts,
+  retirementAllocations,
   securitiesHoldings,
   securitiesImportBatches,
   selfInvestments,
@@ -186,6 +188,7 @@ const snapshotInput = z.object({
   nisaMutualFundAmount: z.number().int().min(0).max(1_000_000_000_000),
   nisaIndividualStockAmount: z.number().int().min(0).max(1_000_000_000_000),
   nisaOtherAssetAmount: z.number().int().min(0).max(1_000_000_000_000),
+  pensionBalance: z.number().int().min(0).max(1_000_000_000_000),
   nisaContributedPrincipal: z.number().int().min(0).max(1_000_000_000_000),
   fujitsuRomanStockShares: z.number().min(0).max(10_000_000),
   holdingStockShares: z.number().min(0).max(10_000_000),
@@ -212,6 +215,7 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
           nisaMutualFundAmount: data.nisaMutualFundAmount,
           nisaIndividualStockAmount: data.nisaIndividualStockAmount,
           nisaOtherAssetAmount: data.nisaOtherAssetAmount,
+          pensionBalance: data.pensionBalance,
           nisaOrkanAmount: 0,
           nisaSp500Amount: 0,
           nisaContributedPrincipal: data.nisaContributedPrincipal,
@@ -247,6 +251,7 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
       nisaMutualFundAmount: data.nisaMutualFundAmount,
       nisaIndividualStockAmount: data.nisaIndividualStockAmount,
       nisaOtherAssetAmount: data.nisaOtherAssetAmount,
+      pensionBalance: data.pensionBalance,
       nisaOrkanAmount: 0,
       nisaSp500Amount: 0,
       nisaContributedPrincipal: data.nisaContributedPrincipal,
@@ -335,6 +340,96 @@ export const deleteStockGoal = createServerFn({ method: 'POST' })
   .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     await getDb().delete(stockGoals).where(eq(stockGoals.id, data.id))
+    return { ok: true as const }
+  })
+
+/* -------------------------------------------------------------------------- */
+/*  Defined-contribution pension (JIS&T)                                       */
+/* -------------------------------------------------------------------------- */
+
+const retirementAllocationInput = z.object({
+  label: z.string().trim().min(1, '商品名を入力してください').max(60),
+  ratio: z.number().min(0).max(100),
+})
+
+const retirementInput = z.object({
+  provider: z.string().trim().min(1).max(80),
+  schemeName: z.string().trim().min(1).max(120),
+  balance: z.number().int().min(0).max(1_000_000_000_000),
+  totalContributed: z.number().int().min(0).max(1_000_000_000_000),
+  monthlyContribution: z.number().int().min(0).max(10_000_000),
+  employerContribution: z.number().int().min(0).max(10_000_000),
+  valuedAt: dateString,
+  notes: optionalNotes,
+  allocations: z.array(retirementAllocationInput).max(10).default([]),
+})
+
+export const saveRetirementAccount = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => retirementInput.parse(data))
+  .handler(async ({ data }) => {
+    const allocationTotal = data.allocations.reduce(
+      (sum, allocation) => sum + allocation.ratio,
+      0,
+    )
+    if (allocationTotal > 100.01) {
+      throw new Error('配分の合計は100%以下にしてください。')
+    }
+
+    const db = getDb()
+    const now = new Date().toISOString()
+    const [existing] = await db
+      .select()
+      .from(retirementAccounts)
+      .limit(1)
+    const id = existing?.id ?? 'default'
+    const values = {
+      provider: data.provider,
+      schemeName: data.schemeName,
+      balance: data.balance,
+      totalContributed: data.totalContributed,
+      monthlyContribution: data.monthlyContribution,
+      employerContribution: data.employerContribution,
+      valuedAt: data.valuedAt,
+      notes: data.notes ?? null,
+      updatedAt: now,
+    }
+
+    if (existing) {
+      await db
+        .update(retirementAccounts)
+        .set(values)
+        .where(eq(retirementAccounts.id, id))
+    } else {
+      await db.insert(retirementAccounts).values({ id, ...values })
+    }
+
+    await db
+      .delete(retirementAllocations)
+      .where(eq(retirementAllocations.accountId, id))
+    if (data.allocations.length > 0) {
+      await db.insert(retirementAllocations).values(
+        data.allocations.map((allocation, index) => ({
+          id: newId(),
+          accountId: id,
+          label: allocation.label,
+          ratio: allocation.ratio,
+          sortOrder: index,
+        })),
+      )
+    }
+
+    const [latest] = await db
+      .select({ id: assetSnapshots.id })
+      .from(assetSnapshots)
+      .orderBy(desc(assetSnapshots.yearMonth))
+      .limit(1)
+    if (latest) {
+      await db
+        .update(assetSnapshots)
+        .set({ pensionBalance: data.balance, updatedAt: now })
+        .where(eq(assetSnapshots.id, latest.id))
+    }
+
     return { ok: true as const }
   })
 
@@ -560,6 +655,7 @@ export const importRakutenSecurities = createServerFn({ method: 'POST' })
       nisaMutualFundAmount: fundValue,
       nisaIndividualStockAmount: stockValue,
       nisaOtherAssetAmount: otherValue,
+      pensionBalance: base?.pensionBalance ?? 0,
       nisaOrkanAmount: 0,
       nisaSp500Amount: 0,
       nisaContributedPrincipal: nextNisaPrincipal,

@@ -2,6 +2,7 @@ import type {
   AppSettings,
   FinancialAccount,
   HoldingStockStatus,
+  RetirementAccount,
 } from './schema'
 
 export const SETTINGS_ID = 'default'
@@ -27,6 +28,18 @@ export const DEFAULT_HOLDING: Omit<HoldingStockStatus, 'updatedAt'> = {
   recordedAt: '',
   averageAcquisitionPrice: 0,
   carryoverAmount: 0,
+}
+
+export const DEFAULT_RETIREMENT: Omit<RetirementAccount, 'updatedAt'> = {
+  id: SETTINGS_ID,
+  provider: 'JIS&T',
+  schemeName: '会社型確定拠出年金',
+  balance: 0,
+  totalContributed: 0,
+  monthlyContribution: 0,
+  employerContribution: 0,
+  valuedAt: '',
+  notes: null,
 }
 
 export const DEFAULT_ACCOUNTS: Omit<
@@ -68,5 +81,14 @@ export const DEFAULT_ACCOUNTS: Omit<
     role: 'サブ口座',
     notes: 'サブの預金口座。',
     sortOrder: 40,
+  },
+  {
+    id: 'jist',
+    name: 'JIS&T',
+    institution: 'JIS&T',
+    kind: 'pension',
+    role: '会社の確定拠出年金',
+    notes: '会社型DC。評価額と拠出額は設定の確定拠出年金で管理します。',
+    sortOrder: 50,
   },
 ]

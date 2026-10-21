@@ -28,6 +28,7 @@ import {
 import { Badge, Field, FieldGrid, Input, MoneyInput } from '../components/ui/form'
 import { PageHeader } from '../components/ui/page'
 import { WithdrawalCard } from '../components/holding/withdrawal-card'
+import { RetirementCard } from '../components/settings/retirement-card'
 import type {
   AppSettings,
   FinancialAccount,
@@ -55,8 +56,16 @@ export const Route = createFileRoute('/settings')({
 })
 
 function SettingsPage() {
-  const { settings, holding, withdrawals, accounts, counts, authRequired } =
-    Route.useLoaderData()
+  const {
+    settings,
+    holding,
+    withdrawals,
+    accounts,
+    retirement,
+    retirementAllocations,
+    counts,
+    authRequired,
+  } = Route.useLoaderData()
   const router = useRouter()
 
   return (
@@ -90,6 +99,11 @@ function SettingsPage() {
           className="lg:col-span-7"
         />
         <AccountsCard accounts={accounts} className="lg:col-span-5" />
+        <RetirementCard
+          account={retirement}
+          allocations={retirementAllocations}
+          className="lg:col-span-12"
+        />
         <DataCard counts={counts} className="lg:col-span-7" />
         <AboutCard
           authRequired={authRequired}

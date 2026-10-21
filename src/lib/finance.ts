@@ -5,6 +5,8 @@ import type {
   CareerEvent,
   HoldingStockStatus,
   HoldingWithdrawal,
+  RetirementAccount,
+  RetirementAllocation,
   SelfInvestment,
   StockGoal,
 } from '../db/schema'
@@ -28,6 +30,7 @@ export const ALLOCATION_COLORS = {
   individualStocks: '#5B9C82',
   otherSecurities: '#8A9C8D',
   fujitsu: '#C1913F',
+  pension: '#4F6B8A',
   carryover: '#D8C7A3',
   securitiesCash: '#C9C0AE',
   cash: '#AEB6AD',
@@ -80,6 +83,7 @@ export function snapshotTotal(snapshot: AssetSnapshot): number {
     safe(snapshot.nisaMutualFundAmount) +
     safe(snapshot.nisaIndividualStockAmount) +
     safe(snapshot.nisaOtherAssetAmount) +
+    safe(snapshot.pensionBalance) +
     fujitsuShares * safe(snapshot.fujitsuCurrentPrice) +
     safe(snapshot.holdingCarryoverAmount) +
     safe(snapshot.gearResaleAmount)
@@ -115,6 +119,7 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
         safe(snapshot.nisaMutualFundAmount) +
         safe(snapshot.nisaIndividualStockAmount) +
         safe(snapshot.nisaOtherAssetAmount) +
+        safe(snapshot.pensionBalance) +
         fujitsu
       return {
         yearMonth: snapshot.yearMonth,
@@ -140,6 +145,7 @@ export interface PortfolioSlice {
     | 'individualStocks'
     | 'otherSecurities'
     | 'fujitsu'
+    | 'pension'
     | 'carryover'
     | 'securitiesCash'
     | 'cash'
@@ -171,6 +177,7 @@ function buildPortfolio(params: {
   otherSecurities: number
   fujitsuShares: number
   fujitsuPrice: number
+  pension: number
   carryover: number
   gear: number
   threshold: number
@@ -181,6 +188,7 @@ function buildPortfolio(params: {
     individualStocks: safe(params.individualStocks),
     otherSecurities: safe(params.otherSecurities),
     fujitsu: safe(fujitsuValue),
+    pension: safe(params.pension),
     carryover: safe(params.carryover),
     securitiesCash: safe(params.securitiesCash),
     cash: safe(params.cash),
@@ -193,6 +201,7 @@ function buildPortfolio(params: {
     { key: 'individualStocks', label: '個別株（富士通ロマン枠を除く）', amount: amounts.individualStocks, ratio: ratioOf(amounts.individualStocks), color: ALLOCATION_COLORS.individualStocks },
     { key: 'otherSecurities', label: 'その他の証券', amount: amounts.otherSecurities, ratio: ratioOf(amounts.otherSecurities), color: ALLOCATION_COLORS.otherSecurities },
     { key: 'fujitsu', label: '富士通（持株会＋引出し済み＋ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
+    { key: 'pension', label: '確定拠出年金（JIS&T）', amount: amounts.pension, ratio: ratioOf(amounts.pension), color: ALLOCATION_COLORS.pension },
     { key: 'carryover', label: '持株会の繰越金', amount: amounts.carryover, ratio: ratioOf(amounts.carryover), color: ALLOCATION_COLORS.carryover },
     { key: 'securitiesCash', label: '証券口座の預り金', amount: amounts.securitiesCash, ratio: ratioOf(amounts.securitiesCash), color: ALLOCATION_COLORS.securitiesCash },
     { key: 'cash', label: '現預金（銀行）', amount: amounts.cash, ratio: ratioOf(amounts.cash), color: ALLOCATION_COLORS.cash },
@@ -203,6 +212,7 @@ function buildPortfolio(params: {
     amounts.individualStocks +
     amounts.otherSecurities +
     amounts.fujitsu +
+    amounts.pension +
     amounts.carryover +
     amounts.securitiesCash +
     amounts.cash
@@ -226,6 +236,7 @@ export function buildCurrentPortfolio(
   gearValue: number,
   threshold = 0.15,
   withdrawnShares = 0,
+  pensionBalance = 0,
 ): Portfolio {
   return buildPortfolio({
     cash: safe(latest?.cashAmount),
@@ -238,6 +249,7 @@ export function buildCurrentPortfolio(
       safe(withdrawnShares) +
       safe(latest?.fujitsuRomanStockShares),
     fujitsuPrice: safe(holding.latestStockPrice) || safe(latest?.fujitsuCurrentPrice),
+    pension: safe(latest?.pensionBalance) || safe(pensionBalance),
     carryover: safe(holding.carryoverAmount),
     gear: gearValue,
     threshold,
@@ -259,6 +271,7 @@ export function buildSnapshotPortfolio(
       safe(snapshot.withdrawnHoldingShares) +
       safe(snapshot.fujitsuRomanStockShares),
     fujitsuPrice: safe(snapshot.fujitsuCurrentPrice),
+    pension: safe(snapshot.pensionBalance),
     carryover: safe(snapshot.holdingCarryoverAmount),
     gear: safe(snapshot.gearResaleAmount),
     threshold,
@@ -596,6 +609,62 @@ export function buildStockGoalSummaries(
       if (a.isAchieved !== b.isAchieved) return a.isAchieved ? 1 : -1
       return a.targetDate.getTime() - b.targetDate.getTime()
     })
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Defined-contribution pension                                               */
+/* -------------------------------------------------------------------------- */
+
+export interface RetirementSummary {
+  balance: number
+  totalContributed: number
+  gain: number
+  gainRatio: number | null
+  monthlyContribution: number
+  employerContribution: number
+  monthlyTotal: number
+  valuedAt: string
+  allocations: RetirementAllocation[]
+  allocationTotal: number
+  isAllocationComplete: boolean
+}
+
+export function buildRetirementSummary(
+  account: RetirementAccount,
+  allocations: RetirementAllocation[] = [],
+): RetirementSummary {
+  const balance = Math.max(0, safe(account.balance))
+  const totalContributed = Math.max(0, safe(account.totalContributed))
+  const gain = balance - totalContributed
+  const monthlyContribution = Math.max(
+    0,
+    safe(account.monthlyContribution),
+  )
+  const employerContribution = Math.max(
+    0,
+    safe(account.employerContribution),
+  )
+  const allocationTotal = allocations.reduce(
+    (sum, allocation) => sum + Math.max(0, safe(allocation.ratio)),
+    0,
+  )
+  return {
+    balance,
+    totalContributed,
+    gain,
+    gainRatio:
+      totalContributed > 0 ? gain / totalContributed : null,
+    monthlyContribution,
+    employerContribution,
+    monthlyTotal: monthlyContribution + employerContribution,
+    valuedAt: account.valuedAt,
+    allocations: [...allocations].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    ),
+    allocationTotal,
+    isAllocationComplete:
+      allocationTotal >= 99.5 && allocationTotal <= 100.5,
+  }
 }
 
 /* -------------------------------------------------------------------------- */

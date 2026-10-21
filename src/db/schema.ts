@@ -105,6 +105,37 @@ export const stockGoals = sqliteTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/*  Defined-contribution pension (JIS&T)                                       */
+/* -------------------------------------------------------------------------- */
+
+export const retirementAccounts = sqliteTable('retirement_accounts', {
+  id: text('id').primaryKey(), // fixed: 'default'
+  provider: text('provider').notNull().default('JIS&T'),
+  schemeName: text('scheme_name').notNull().default('会社型確定拠出年金'),
+  balance: integer('balance').notNull().default(0), // 評価額
+  totalContributed: integer('total_contributed').notNull().default(0), // 累計拠出額
+  monthlyContribution: integer('monthly_contribution').notNull().default(0), // 本人の月額拠出
+  employerContribution: integer('employer_contribution').notNull().default(0), // 会社の月額拠出
+  valuedAt: text('valued_at').notNull().default(''), // 評価日 YYYY-MM-DD
+  notes: text('notes'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const retirementAllocations = sqliteTable(
+  'retirement_allocations',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull().default('default'),
+    label: text('label').notNull(),
+    ratio: real('ratio').notNull().default(0), // 0-100
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => [
+    index('retirement_allocations_account_idx').on(table.accountId),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Financial accounts (metadata)                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -203,6 +234,7 @@ export const assetSnapshots = sqliteTable(
     nisaIndividualStockAmount: integer('nisa_individual_stock_amount').notNull().default(0), // 個別株の評価額（富士通ロマン枠を除く）
     nisaOtherAssetAmount: integer('nisa_other_asset_amount').notNull().default(0), // 債券・金などその他の証券
     securitiesCashAmount: integer('securities_cash_amount').notNull().default(0), // 証券口座の預り金
+    pensionBalance: integer('pension_balance').notNull().default(0), // 確定拠出年金の評価額
     nisaContributedPrincipal: integer('nisa_contributed_principal').notNull(), // NISA 累計元本
     fujitsuRomanStockShares: real('fujitsu_roman_stock_shares').notNull().default(0), // NISA ロマン枠
     holdingStockShares: real('holding_stock_shares').notNull().default(0), // 持株会の保有株数
@@ -266,6 +298,8 @@ export type AppSettings = typeof appSettings.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
 export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
 export type StockGoal = typeof stockGoals.$inferSelect
+export type RetirementAccount = typeof retirementAccounts.$inferSelect
+export type RetirementAllocation = typeof retirementAllocations.$inferSelect
 export type FinancialAccount = typeof financialAccounts.$inferSelect
 export type SecuritiesImportBatch = typeof securitiesImportBatches.$inferSelect
 export type SecuritiesHolding = typeof securitiesHoldings.$inferSelect
