@@ -151,7 +151,8 @@ D1 のテーブルはすべて単一ユーザー前提のシングルトン、�
 - `financial_accounts` — 楽天証券・SMBC日興証券・楽天銀行・SMBC・JIS&Tなどの口座メタデータ
 - `securities_import_batches` — 楽天証券CSVの取り込み単位（基準日・ファイル名・集計値）
 - `securities_holdings` — CSVから取り込んだ保有銘柄（種別・口座・数量・評価額・取得額）
-- `asset_snapshots` — 月次の資産スナップショット（投資信託・個別株・その他の証券・証券預り金・確定拠出年金を含む）
+- `asset_snapshots` — 月次の資産スナップショット（互換用の派生キャッシュ。正の記録は `asset_entries`）
+- `asset_entries` — 項目ごとの評価額台帳（評価日・項目キー・値）。月次スナップショットはここから繰越集計する
 - `camera_gears` — 機材台帳（R2 の画像キーを含む）
 - `self_investments` — 資格・講座・書籍の記録
 - `career_events` — 昇格・昇給などのキャリアイベント

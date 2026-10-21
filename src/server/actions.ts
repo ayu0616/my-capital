@@ -1,10 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db/client.server'
 import {
   appSettings,
-  assetSnapshots,
+  assetEntries,
   cameraGears,
   careerEvents,
   holdingStockStatus,
@@ -18,13 +18,11 @@ import {
 } from '../db/schema'
 import { readHolding, readSettings } from './db.server'
 import { removeImage } from './storage.server'
+import { toDateOnlyString, todayDateOnly } from '../lib/format'
 
 const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, '日付の形式が正しくありません')
-const yearMonth = z
-  .string()
-  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, '年月の形式が正しくありません')
 const optionalNotes = z.string().trim().max(1000).optional().nullable()
 
 function newId() {
@@ -70,10 +68,38 @@ export const updateHolding = createServerFn({ method: 'POST' })
   .validator((data: unknown) => holdingInput.parse(data))
   .handler(async ({ data }) => {
     const current = await readHolding()
+    const now = new Date().toISOString()
     await getDb()
       .update(holdingStockStatus)
-      .set({ ...data, updatedAt: new Date().toISOString() })
+      .set({ ...data, updatedAt: now })
       .where(eq(holdingStockStatus.id, current.id))
+
+    const entryDate = data.recordedAt || toDateOnlyString(todayDateOnly())
+    const holdingEntries: Record<string, number> = {
+      holding_shares: data.currentAccumulatedShares,
+      holding_average_price: data.averageAcquisitionPrice,
+      holding_carryover: data.carryoverAmount,
+    }
+    if (data.latestStockPrice > 0) {
+      holdingEntries.fujitsu_price = data.latestStockPrice
+    }
+    for (const [itemKey, value] of Object.entries(holdingEntries)) {
+      await getDb()
+        .insert(assetEntries)
+        .values({
+          id: newId(),
+          itemKey,
+          valuedAt: entryDate,
+          value,
+          notes: '持株会の設定更新',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [assetEntries.itemKey, assetEntries.valuedAt],
+          set: { value, notes: '持株会の設定更新', updatedAt: now },
+        })
+    }
     return { ok: true as const }
   })
 
@@ -146,6 +172,26 @@ export const saveHoldingWithdrawal = createServerFn({ method: 'POST' })
       })
       .where(eq(holdingStockStatus.id, current.id))
 
+    await db
+      .insert(assetEntries)
+      .values({
+        id: newId(),
+        itemKey: 'holding_shares',
+        valuedAt: data.withdrawnAt,
+        value: Math.max(0, nextHoldingShares),
+        notes: '持株会の引出し記録',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [assetEntries.itemKey, assetEntries.valuedAt],
+        set: {
+          value: Math.max(0, nextHoldingShares),
+          notes: '持株会の引出し記録',
+          updatedAt: now,
+        },
+      })
+
     return { ok: true as const }
   })
 
@@ -162,14 +208,34 @@ export const deleteHoldingWithdrawal = createServerFn({ method: 'POST' })
 
     const current = await readHolding()
     const now = new Date().toISOString()
+    const nextHoldingShares =
+      current.currentAccumulatedShares + existing.shares
     await db
       .update(holdingStockStatus)
       .set({
-        currentAccumulatedShares:
-          current.currentAccumulatedShares + existing.shares,
+        currentAccumulatedShares: nextHoldingShares,
         updatedAt: now,
       })
       .where(eq(holdingStockStatus.id, current.id))
+    await db
+      .insert(assetEntries)
+      .values({
+        id: newId(),
+        itemKey: 'holding_shares',
+        valuedAt: existing.withdrawnAt,
+        value: nextHoldingShares,
+        notes: '持株会の引出し記録の削除',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [assetEntries.itemKey, assetEntries.valuedAt],
+        set: {
+          value: nextHoldingShares,
+          notes: '持株会の引出し記録の削除',
+          updatedAt: now,
+        },
+      })
     await db
       .delete(holdingWithdrawals)
       .where(eq(holdingWithdrawals.id, data.id))
@@ -177,103 +243,121 @@ export const deleteHoldingWithdrawal = createServerFn({ method: 'POST' })
   })
 
 /* -------------------------------------------------------------------------- */
-/*  Asset snapshots                                                            */
+/*  Asset entries (item-level valuation ledger)                               */
 /* -------------------------------------------------------------------------- */
 
-const snapshotInput = z.object({
+const assetEntryInput = z.object({
   id: z.string().min(1).optional(),
-  yearMonth,
-  cashAmount: z.number().int().min(0).max(1_000_000_000_000),
-  securitiesCashAmount: z.number().int().min(0).max(1_000_000_000_000),
-  nisaMutualFundAmount: z.number().int().min(0).max(1_000_000_000_000),
-  nisaIndividualStockAmount: z.number().int().min(0).max(1_000_000_000_000),
-  nisaOtherAssetAmount: z.number().int().min(0).max(1_000_000_000_000),
-  pensionBalance: z.number().int().min(0).max(1_000_000_000_000),
-  nisaContributedPrincipal: z.number().int().min(0).max(1_000_000_000_000),
-  fujitsuRomanStockShares: z.number().min(0).max(10_000_000),
-  holdingStockShares: z.number().min(0).max(10_000_000),
-  withdrawnHoldingShares: z.number().min(0).max(10_000_000),
-  holdingAverageAcquisitionPrice: z.number().min(0).max(10_000_000),
-  holdingCarryoverAmount: z.number().int().min(0).max(1_000_000_000),
-  fujitsuCurrentPrice: z.number().min(0).max(10_000_000),
-  gearResaleAmount: z.number().int().min(0).max(1_000_000_000_000),
+  itemKey: z.string().min(1).max(60),
+  valuedAt: dateString,
+  value: z.number().min(0).max(1_000_000_000_000_000),
   notes: optionalNotes,
 })
 
-export const saveSnapshot = createServerFn({ method: 'POST' })
-  .validator((data: unknown) => snapshotInput.parse(data))
+const assetEntriesInput = z.object({
+  valuedAt: dateString,
+  values: z.record(z.string(), z.number().min(0).max(1_000_000_000_000_000)),
+  notes: optionalNotes,
+})
+
+export const saveAssetEntry = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => assetEntryInput.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
     const now = new Date().toISOString()
     if (data.id) {
+      const [existing] = await db
+        .select()
+        .from(assetEntries)
+        .where(eq(assetEntries.id, data.id))
+        .limit(1)
+      if (!existing) throw new Error('記録が見つかりませんでした')
+      const conflict = await db
+        .select({ id: assetEntries.id })
+        .from(assetEntries)
+        .where(
+          and(
+            eq(assetEntries.itemKey, data.itemKey),
+            eq(assetEntries.valuedAt, data.valuedAt),
+          ),
+        )
+        .limit(1)
+      if (conflict[0] && conflict[0].id !== data.id) {
+        throw new Error('同じ項目・日付の記録が既にあります')
+      }
       await db
-        .update(assetSnapshots)
+        .update(assetEntries)
         .set({
-          yearMonth: data.yearMonth,
-          cashAmount: data.cashAmount,
-          securitiesCashAmount: data.securitiesCashAmount,
-          nisaMutualFundAmount: data.nisaMutualFundAmount,
-          nisaIndividualStockAmount: data.nisaIndividualStockAmount,
-          nisaOtherAssetAmount: data.nisaOtherAssetAmount,
-          pensionBalance: data.pensionBalance,
-          nisaOrkanAmount: 0,
-          nisaSp500Amount: 0,
-          nisaContributedPrincipal: data.nisaContributedPrincipal,
-          fujitsuRomanStockShares: data.fujitsuRomanStockShares,
-          holdingStockShares: data.holdingStockShares,
-          withdrawnHoldingShares: data.withdrawnHoldingShares,
-          holdingAverageAcquisitionPrice: data.holdingAverageAcquisitionPrice,
-          holdingCarryoverAmount: data.holdingCarryoverAmount,
-          fujitsuCurrentPrice: data.fujitsuCurrentPrice,
-          gearResaleAmount: data.gearResaleAmount,
+          itemKey: data.itemKey,
+          valuedAt: data.valuedAt,
+          value: data.value,
           notes: data.notes ?? null,
           updatedAt: now,
         })
-        .where(eq(assetSnapshots.id, data.id))
+        .where(eq(assetEntries.id, data.id))
       return { ok: true as const, id: data.id }
     }
 
-    const [existing] = await db
-      .select({ id: assetSnapshots.id })
-      .from(assetSnapshots)
-      .where(eq(assetSnapshots.yearMonth, data.yearMonth))
-      .limit(1)
-    if (existing) {
-      throw new Error('この年月にはすでに記録があります。一覧から編集してください。')
-    }
-
     const id = newId()
-    await db.insert(assetSnapshots).values({
-      id,
-      yearMonth: data.yearMonth,
-      cashAmount: data.cashAmount,
-      securitiesCashAmount: data.securitiesCashAmount,
-      nisaMutualFundAmount: data.nisaMutualFundAmount,
-      nisaIndividualStockAmount: data.nisaIndividualStockAmount,
-      nisaOtherAssetAmount: data.nisaOtherAssetAmount,
-      pensionBalance: data.pensionBalance,
-      nisaOrkanAmount: 0,
-      nisaSp500Amount: 0,
-      nisaContributedPrincipal: data.nisaContributedPrincipal,
-      fujitsuRomanStockShares: data.fujitsuRomanStockShares,
-      holdingStockShares: data.holdingStockShares,
-      withdrawnHoldingShares: data.withdrawnHoldingShares,
-      holdingAverageAcquisitionPrice: data.holdingAverageAcquisitionPrice,
-      holdingCarryoverAmount: data.holdingCarryoverAmount,
-      fujitsuCurrentPrice: data.fujitsuCurrentPrice,
-      gearResaleAmount: data.gearResaleAmount,
-      notes: data.notes ?? null,
-      createdAt: now,
-      updatedAt: now,
-    })
+    await db
+      .insert(assetEntries)
+      .values({
+        id,
+        itemKey: data.itemKey,
+        valuedAt: data.valuedAt,
+        value: data.value,
+        notes: data.notes ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [assetEntries.itemKey, assetEntries.valuedAt],
+        set: {
+          value: data.value,
+          notes: data.notes ?? null,
+          updatedAt: now,
+        },
+      })
     return { ok: true as const, id }
   })
 
-export const deleteSnapshot = createServerFn({ method: 'POST' })
+export const deleteAssetEntry = createServerFn({ method: 'POST' })
   .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
-    await getDb().delete(assetSnapshots).where(eq(assetSnapshots.id, data.id))
+    await getDb().delete(assetEntries).where(eq(assetEntries.id, data.id))
     return { ok: true as const }
+  })
+
+export const saveAssetEntries = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => assetEntriesInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const now = new Date().toISOString()
+    let saved = 0
+    for (const [itemKey, value] of Object.entries(data.values)) {
+      if (!Number.isFinite(value)) continue
+      await db
+        .insert(assetEntries)
+        .values({
+          id: newId(),
+          itemKey,
+          valuedAt: data.valuedAt,
+          value,
+          notes: data.notes ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [assetEntries.itemKey, assetEntries.valuedAt],
+          set: {
+            value,
+            notes: data.notes ?? null,
+            updatedAt: now,
+          },
+        })
+      saved += 1
+    }
+    return { ok: true as const, saved }
   })
 
 /* -------------------------------------------------------------------------- */
@@ -418,17 +502,25 @@ export const saveRetirementAccount = createServerFn({ method: 'POST' })
       )
     }
 
-    const [latest] = await db
-      .select({ id: assetSnapshots.id })
-      .from(assetSnapshots)
-      .orderBy(desc(assetSnapshots.yearMonth))
-      .limit(1)
-    if (latest) {
-      await db
-        .update(assetSnapshots)
-        .set({ pensionBalance: data.balance, updatedAt: now })
-        .where(eq(assetSnapshots.id, latest.id))
-    }
+    await db
+      .insert(assetEntries)
+      .values({
+        id: newId(),
+        itemKey: 'pension',
+        valuedAt: data.valuedAt,
+        value: data.balance,
+        notes: data.notes ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [assetEntries.itemKey, assetEntries.valuedAt],
+        set: {
+          value: data.balance,
+          notes: data.notes ?? null,
+          updatedAt: now,
+        },
+      })
 
     return { ok: true as const }
   })
@@ -628,66 +720,49 @@ export const importRakutenSecurities = createServerFn({ method: 'POST' })
       }
     }
 
-    const [latest] = await db
-      .select()
-      .from(assetSnapshots)
-      .orderBy(desc(assetSnapshots.yearMonth))
-      .limit(1)
     const holding = await readHolding()
-    const yearMonth = data.asOfDate.slice(0, 7)
-    const [existing] = await db
-      .select()
-      .from(assetSnapshots)
-      .where(eq(assetSnapshots.yearMonth, yearMonth))
-      .limit(1)
-    const base = existing ?? latest ?? null
     const nextFujitsuPrice =
-      fujitsuPrice ||
-      base?.fujitsuCurrentPrice ||
-      holding.latestStockPrice
+      fujitsuPrice || holding.latestStockPrice
     const nextNisaPrincipal =
       data.updateNisaPrincipal && nisaCostBasis > 0
         ? nisaCostBasis
-        : base?.nisaContributedPrincipal ?? 0
-    const values = {
-      cashAmount: base?.cashAmount ?? 0,
-      securitiesCashAmount: data.cashValue,
-      nisaMutualFundAmount: fundValue,
-      nisaIndividualStockAmount: stockValue,
-      nisaOtherAssetAmount: otherValue,
-      pensionBalance: base?.pensionBalance ?? 0,
-      nisaOrkanAmount: 0,
-      nisaSp500Amount: 0,
-      nisaContributedPrincipal: nextNisaPrincipal,
-      fujitsuRomanStockShares: fujitsuShares,
-      holdingStockShares:
-        base?.holdingStockShares ?? holding.currentAccumulatedShares,
-      withdrawnHoldingShares: base?.withdrawnHoldingShares ?? 0,
-      holdingAverageAcquisitionPrice:
-        base?.holdingAverageAcquisitionPrice ||
-        holding.averageAcquisitionPrice,
-      holdingCarryoverAmount:
-        base?.holdingCarryoverAmount ?? holding.carryoverAmount,
-      fujitsuCurrentPrice: nextFujitsuPrice,
-      gearResaleAmount: base?.gearResaleAmount ?? 0,
-      notes:
-        existing?.notes ??
-        `楽天証券の保有資産CSVを取り込み（${data.fileName || 'CSV'}）`,
-      updatedAt: now,
+        : 0
+    const importNote = `楽天証券の保有資産CSVを取り込み（${data.fileName || 'CSV'}）`
+
+    const entryValues: Record<string, number> = {
+      securities_cash: data.cashValue,
+      mutual_funds: fundValue,
+      individual_stocks: stockValue,
+      other_securities: otherValue,
+      fujitsu_roman_shares: fujitsuShares,
+    }
+    if (nextNisaPrincipal > 0) {
+      entryValues.nisa_principal = nextNisaPrincipal
+    }
+    if (nextFujitsuPrice > 0) {
+      entryValues.fujitsu_price = nextFujitsuPrice
     }
 
-    if (existing) {
+    for (const [itemKey, value] of Object.entries(entryValues)) {
       await db
-        .update(assetSnapshots)
-        .set(values)
-        .where(eq(assetSnapshots.id, existing.id))
-    } else {
-      await db.insert(assetSnapshots).values({
-        id: newId(),
-        yearMonth,
-        ...values,
-        createdAt: now,
-      })
+        .insert(assetEntries)
+        .values({
+          id: newId(),
+          itemKey,
+          valuedAt: data.asOfDate,
+          value,
+          notes: importNote,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [assetEntries.itemKey, assetEntries.valuedAt],
+          set: {
+            value,
+            notes: importNote,
+            updatedAt: now,
+          },
+        })
     }
 
     if (nextFujitsuPrice > 0) {
@@ -700,7 +775,7 @@ export const importRakutenSecurities = createServerFn({ method: 'POST' })
     return {
       ok: true as const,
       batchId,
-      yearMonth,
+      yearMonth: data.asOfDate.slice(0, 7),
       totalValue,
       productValue,
       cashValue: data.cashValue,
@@ -753,23 +828,45 @@ export const saveGear = createServerFn({ method: 'POST' })
           updatedAt: now,
         })
         .where(eq(cameraGears.id, data.id))
-      return { ok: true as const, id: data.id }
+    } else {
+      const id = newId()
+      await db.insert(cameraGears).values({
+        id,
+        name: data.name,
+        category: data.category,
+        purchasedAt: data.purchasedAt,
+        purchasePrice: data.purchasePrice,
+        resaleValue: data.resaleValue,
+        imageKey: data.imageKey ?? null,
+        notes: data.notes ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
     }
 
-    const id = newId()
-    await db.insert(cameraGears).values({
-      id,
-      name: data.name,
-      category: data.category,
-      purchasedAt: data.purchasedAt,
-      purchasePrice: data.purchasePrice,
-      resaleValue: data.resaleValue,
-      imageKey: data.imageKey ?? null,
-      notes: data.notes ?? null,
-      createdAt: now,
-      updatedAt: now,
-    })
-    return { ok: true as const, id }
+    const gearRows = await db.select().from(cameraGears)
+    const totalResale = gearRows.reduce(
+      (sum, gear) => sum + gear.resaleValue,
+      0,
+    )
+    const today = toDateOnlyString(todayDateOnly())
+    await db
+      .insert(assetEntries)
+      .values({
+        id: newId(),
+        itemKey: 'gear_resale',
+        valuedAt: today,
+        value: totalResale,
+        notes: '機材台帳の更新',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [assetEntries.itemKey, assetEntries.valuedAt],
+        set: { value: totalResale, notes: '機材台帳の更新', updatedAt: now },
+      })
+
+    return { ok: true as const, id: data.id ?? 'created' }
   })
 
 export const deleteGear = createServerFn({ method: 'POST' })
@@ -783,6 +880,30 @@ export const deleteGear = createServerFn({ method: 'POST' })
       .limit(1)
     if (existing?.imageKey) await removeImage(existing.imageKey)
     await db.delete(cameraGears).where(eq(cameraGears.id, data.id))
+
+    const gearRows = await db.select().from(cameraGears)
+    const totalResale = gearRows.reduce(
+      (sum, gear) => sum + gear.resaleValue,
+      0,
+    )
+    const now = new Date().toISOString()
+    const today = toDateOnlyString(todayDateOnly())
+    await db
+      .insert(assetEntries)
+      .values({
+        id: newId(),
+        itemKey: 'gear_resale',
+        valuedAt: today,
+        value: totalResale,
+        notes: '機材台帳の更新',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [assetEntries.itemKey, assetEntries.valuedAt],
+        set: { value: totalResale, notes: '機材台帳の更新', updatedAt: now },
+      })
+
     return { ok: true as const }
   })
 

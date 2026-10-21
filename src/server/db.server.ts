@@ -8,7 +8,7 @@ import {
 } from '../db/defaults'
 import {
   appSettings,
-  assetSnapshots,
+  assetEntries,
   cameraGears,
   careerEvents,
   financialAccounts,
@@ -22,6 +22,7 @@ import {
   stockGoals,
 } from '../db/schema'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
+import { buildAssetSnapshots } from '../lib/asset-history'
 
 /**
  * Server-only data access. Never import this module from a component or a
@@ -105,6 +106,13 @@ export async function readHoldingWithdrawals() {
     .orderBy(desc(holdingWithdrawals.withdrawnAt), desc(holdingWithdrawals.createdAt))
 }
 
+export async function readAssetEntries() {
+  return getDb()
+    .select()
+    .from(assetEntries)
+    .orderBy(asc(assetEntries.valuedAt), asc(assetEntries.createdAt))
+}
+
 export async function readStockGoals() {
   return getDb()
     .select()
@@ -137,7 +145,7 @@ export async function fetchDashboardData() {
     settings,
     holding,
     withdrawals,
-    snapshots,
+    entries,
     gears,
     investments,
     events,
@@ -148,7 +156,7 @@ export async function fetchDashboardData() {
     readSettings(),
     readHolding(),
     readHoldingWithdrawals(),
-    db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
+    readAssetEntries(),
     db.select().from(cameraGears).orderBy(desc(cameraGears.purchasedAt)),
     db
       .select()
@@ -160,11 +168,14 @@ export async function fetchDashboardData() {
     readRetirementAllocations(),
   ])
 
+  const snapshots = buildAssetSnapshots(entries, withdrawals)
+
   return {
     settings,
     holding,
     withdrawals,
     snapshots,
+    assetEntries: entries,
     gears,
     investments,
     careerEvents: events,
@@ -191,7 +202,7 @@ export async function fetchAssetsData() {
     settings,
     holding,
     withdrawals,
-    snapshots,
+    entries,
     gears,
     retirement,
     latestBatch,
@@ -199,7 +210,7 @@ export async function fetchAssetsData() {
     readSettings(),
     readHolding(),
     readHoldingWithdrawals(),
-    db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
+    readAssetEntries(),
     db.select().from(cameraGears),
     readRetirementAccount(),
     db
@@ -211,6 +222,8 @@ export async function fetchAssetsData() {
       )
       .limit(1),
   ])
+
+  const snapshots = buildAssetSnapshots(entries, withdrawals)
   const batch = latestBatch[0] ?? null
   const holdings = batch
     ? await db
@@ -229,6 +242,7 @@ export async function fetchAssetsData() {
     holding,
     withdrawals,
     snapshots,
+    assetEntries: entries,
     gears,
     retirement,
     securities: { batch, holdings },
@@ -275,7 +289,7 @@ export async function fetchSettingsData() {
     holding,
     withdrawals,
     accounts,
-    snapshotCount,
+    entries,
     gearCount,
     investmentCount,
     securitiesCount,
@@ -290,7 +304,7 @@ export async function fetchSettingsData() {
       .select()
       .from(financialAccounts)
       .orderBy(asc(financialAccounts.sortOrder)),
-    db.select().from(assetSnapshots),
+    readAssetEntries(),
     db.select().from(cameraGears),
     db.select().from(selfInvestments),
     db.select().from(securitiesHoldings),
@@ -298,6 +312,7 @@ export async function fetchSettingsData() {
     readRetirementAccount(),
     readRetirementAllocations(),
   ])
+  const snapshotCount = buildAssetSnapshots(entries, withdrawals)
   return {
     settings,
     holding,

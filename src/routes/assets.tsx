@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -6,15 +6,14 @@ import {
   Pencil,
   Plus,
   Target,
-  Trash2,
   Wallet,
 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { NisaCard } from '../components/dashboard/nisa-card'
 import { TrendCard } from '../components/dashboard/trend-card'
 import { SecuritiesCard } from '../components/assets/securities-card'
-import { SnapshotDialog } from '../components/assets/snapshot-dialog'
+import { AssetEntryDialog } from '../components/assets/snapshot-dialog'
+import { ASSET_ITEM_GROUPS, ASSET_ITEMS, formatAssetEntryValue } from '../lib/asset-items'
 import { Button } from '../components/ui/button'
 import {
   Card,
@@ -22,12 +21,11 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card'
-import { ConfirmDialog } from '../components/ui/dialog'
+
 import { EmptyState } from '../components/ui/empty-state'
 import { Badge } from '../components/ui/form'
 import { MetricCard, MetricGrid } from '../components/ui/metric'
 import { PageHeader } from '../components/ui/page'
-import type { AssetSnapshot } from '../db/schema'
 import {
   buildCurrentPortfolio,
   buildGearSummary,
@@ -37,7 +35,6 @@ import {
   snapshotTotal,
 } from '../lib/finance'
 import {
-  currentYearMonth,
   formatPercent,
   formatSignedPercent,
   formatYearMonth,
@@ -45,7 +42,6 @@ import {
   parseDateOnly,
 } from '../lib/format'
 import { getAssetsData } from '../server/queries'
-import { deleteSnapshot } from '../server/actions'
 
 export const Route = createFileRoute('/assets')({
   head: () => ({
@@ -61,17 +57,15 @@ function AssetsPage() {
     holding,
     withdrawals,
     snapshots,
+    assetEntries,
     gears,
     retirement,
     securities,
     today,
   } = Route.useLoaderData()
-  const router = useRouter()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<AssetSnapshot | null>(null)
-  const [newMonth, setNewMonth] = useState<string | null>('')
-  const [deleting, setDeleting] = useState<AssetSnapshot | null>(null)
-  const [deletePending, setDeletePending] = useState(false)
+  const [allOpen, setAllOpen] = useState(false)
+  const [itemOpen, setItemOpen] = useState(false)
+  const [activeItemKey, setActiveItemKey] = useState<string | null>(null)
 
   const latest = snapshots.at(-1) ?? null
   const previous = snapshots.at(-2) ?? null
@@ -97,39 +91,9 @@ function AssetsPage() {
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
 
-  function openNew(yearMonth: string | null = '') {
-    setEditing(null)
-    setNewMonth(yearMonth)
-    setDialogOpen(true)
-  }
-
-  function openEdit(snapshot: AssetSnapshot) {
-    setEditing(snapshot)
-    setDialogOpen(true)
-  }
-
-  function openCurrentMonth() {
-    const current = snapshots.find(
-      (snapshot) => snapshot.yearMonth === currentYearMonth(),
-    )
-    if (current) openEdit(current)
-    else openNew(null)
-  }
-
-  async function confirmDelete() {
-    if (!deleting) return
-    setDeletePending(true)
-    try {
-      await deleteSnapshot({ data: { id: deleting.id } })
-      toast.success(`${formatYearMonth(deleting.yearMonth)} の記録を削除しました`)
-      setDeleting(null)
-      await router.invalidate()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '削除に失敗しました')
-    } finally {
-      setDeletePending(false)
-    }
-  }
+  const activeItem = activeItemKey
+    ? ASSET_ITEMS.find((item) => item.key === activeItemKey) ?? null
+    : null
 
   const rows = [...snapshots].reverse()
 
@@ -141,11 +105,11 @@ function AssetsPage() {
         description="毎月の資産額を記録し、純資産とNISAの進捗を確認します。"
         actions={
           <>
-            <Button variant="outline" onClick={() => openNew()}>
+            <Button variant="outline" onClick={() => setAllOpen(true)}>
               <Plus className="size-3.5" />
-              月を追加
+              まとめて更新
             </Button>
-            <Button onClick={openCurrentMonth}>
+            <Button onClick={() => setAllOpen(true)}>
               <Wallet className="size-3.5" />
               今月を記録
             </Button>
@@ -207,14 +171,82 @@ function AssetsPage() {
       <Card className="mt-4">
         <CardHeader className="items-center">
           <div>
-            <CardTitle>月次スナップショット</CardTitle>
+            <CardTitle>資産項目の記録</CardTitle>
             <p className="mt-1 text-[0.68rem] text-muted">
-              全 {snapshots.length} ヶ月の記録
+              項目ごとに評価日と値を記録します。最新値は繰り越して月次推移を自動集計します。
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => openNew()}>
+          <Button variant="outline" size="sm" onClick={() => setAllOpen(true)}>
             <Plus className="size-3.5" />
-            新規
+            まとめて更新
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {ASSET_ITEM_GROUPS.map((group) => (
+              <div key={group} className="space-y-2">
+                <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-muted">
+                  {group}
+                </p>
+                <ul className="divide-y divide-line/60 rounded-xl border border-line/60">
+                  {ASSET_ITEMS.filter((item) => item.group === group).map((item) => {
+                    const entry = assetEntries
+                      .filter((row) => row.itemKey === item.key)
+                      .sort((a, b) => b.valuedAt.localeCompare(a.valuedAt))[0]
+                    return (
+                      <li
+                        key={item.key}
+                        className="flex items-center justify-between gap-3 px-3 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[0.72rem] font-semibold text-ink">
+                            {item.label}
+                          </p>
+                          <p className="mt-0.5 text-[0.56rem] text-muted">
+                            {entry
+                              ? `${entry.valuedAt} 時点`
+                              : '未記録'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[0.76rem] font-bold tabular text-ink">
+                            {entry
+                              ? formatAssetEntryValue(item, entry.value)
+                              : '—'}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setActiveItemKey(item.key)
+                              setItemOpen(true)
+                            }}
+                          >
+                            <Pencil className="size-3" />
+                            更新
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader className="items-center">
+          <div>
+            <CardTitle>月次推移（自動集計）</CardTitle>
+            <p className="mt-1 text-[0.68rem] text-muted">
+              項目ごとの記録から {snapshots.length} ヶ月分を集計
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setAllOpen(true)}>
+            <Plus className="size-3.5" />
+            追加
           </Button>
         </CardHeader>
 
@@ -224,7 +256,7 @@ function AssetsPage() {
               icon={Wallet}
               title="スナップショットがありません"
               description="現預金・投資信託・持株会・機材の評価額を1ヶ月分入力すると、月次推移が表示されます。"
-              action={<Button onClick={() => openNew(null)}>最初の記録を追加</Button>}
+              action={<Button onClick={() => setAllOpen(true)}>最初の記録を追加</Button>}
             />
           ) : (
             <>
@@ -242,7 +274,6 @@ function AssetsPage() {
                       <th className="px-3 py-2.5 text-right font-bold">富士通</th>
                       <th className="px-3 py-2.5 text-right font-bold">機材</th>
                       <th className="px-3 py-2.5 text-right font-bold">純資産</th>
-                      <th className="py-2.5 pl-3 text-right font-bold">操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -307,27 +338,6 @@ function AssetsPage() {
                           <td className="px-3 py-3 text-right text-[0.76rem] font-bold tabular text-ink">
                             {formatYen(total)}
                           </td>
-                          <td className="py-3 pl-3">
-                            <div className="flex items-center justify-end gap-0.5 opacity-60 transition group-hover:opacity-100">
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="編集"
-                                onClick={() => openEdit(snapshot)}
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="削除"
-                                onClick={() => setDeleting(snapshot)}
-                                className="text-muted hover:text-danger"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </div>
-                          </td>
                         </tr>
                       )
                     })}
@@ -385,24 +395,6 @@ function AssetsPage() {
                           機材 {formatYen(snapshot.gearResaleAmount)}
                         </span>
                       </div>
-                      <div className="mt-2 flex justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEdit(snapshot)}
-                        >
-                          <Pencil className="size-3" />
-                          編集
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleting(snapshot)}
-                          className="text-muted hover:text-danger"
-                        >
-                          削除
-                        </Button>
-                      </div>
                     </li>
                   )
                 })}
@@ -412,33 +404,27 @@ function AssetsPage() {
         </CardContent>
       </Card>
 
-      <SnapshotDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        snapshot={editing}
-        snapshots={snapshots}
-        latest={latest}
-        holding={holding}
-        gearResaleTotal={gearSummary.resaleTotal}
-        withdrawnShares={withdrawnShares}
-        pensionBalanceFallback={retirement.balance}
-        defaultYearMonth={newMonth}
+      <AssetEntryDialog
+        open={allOpen}
+        onOpenChange={setAllOpen}
+        items={ASSET_ITEMS}
+        entries={assetEntries}
+        title="資産をまとめて更新"
+        description="記録する日付と、更新したい項目の値を入力します。空欄の項目は更新されません。"
       />
-
-      <ConfirmDialog
-        open={Boolean(deleting)}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null)
-        }}
-        onConfirm={confirmDelete}
-        pending={deletePending}
-        title="スナップショットを削除しますか？"
-        description={
-          deleting
-            ? `${formatYearMonth(deleting.yearMonth)} の記録を削除します。この操作は取り消せません。`
-            : ''
-        }
-      />
+      {activeItem ? (
+        <AssetEntryDialog
+          open={itemOpen}
+          onOpenChange={(open) => {
+            setItemOpen(open)
+            if (!open) setActiveItemKey(null)
+          }}
+          items={[activeItem]}
+          entries={assetEntries}
+          title={`${activeItem.label} を更新`}
+          description="評価日と値を入力します。履歴から読み込んで修正することもできます。"
+        />
+      ) : null}
     </>
   )
 }

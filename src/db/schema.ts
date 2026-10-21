@@ -251,6 +251,33 @@ export const assetSnapshots = sqliteTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/*  Asset entries (item-level valuation ledger)                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 資産の各項目を、評価日ごとに記録する台帳。
+ * 月次スナップショットはここから「項目ごとに最新値を繰越して」導出する。
+ * 1つの月に複数回記録した場合は、評価日が新しい値が優先される。
+ */
+export const assetEntries = sqliteTable(
+  'asset_entries',
+  {
+    id: text('id').primaryKey(),
+    itemKey: text('item_key').notNull(), // bank_cash, securities_cash, mutual_funds, ...
+    valuedAt: text('valued_at').notNull(), // YYYY-MM-DD
+    value: real('value').notNull().default(0),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('asset_entries_item_date_idx').on(table.itemKey, table.valuedAt),
+    index('asset_entries_item_idx').on(table.itemKey),
+    index('asset_entries_valued_at_idx').on(table.valuedAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Camera gear ledger                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -304,6 +331,7 @@ export type FinancialAccount = typeof financialAccounts.$inferSelect
 export type SecuritiesImportBatch = typeof securitiesImportBatches.$inferSelect
 export type SecuritiesHolding = typeof securitiesHoldings.$inferSelect
 export type AssetSnapshot = typeof assetSnapshots.$inferSelect
+export type AssetEntry = typeof assetEntries.$inferSelect
 export type CameraGear = typeof cameraGears.$inferSelect
 export type SelfInvestment = typeof selfInvestments.$inferSelect
 export type CareerEvent = typeof careerEvents.$inferSelect
