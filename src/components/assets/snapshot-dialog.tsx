@@ -20,8 +20,10 @@ import { Field, FieldGrid, Input, MoneyInput, Textarea } from '../ui/form'
 type SnapshotFormValues = {
   yearMonth: string
   cashAmount: string
-  nisaOrkanAmount: string
-  nisaSp500Amount: string
+  securitiesCashAmount: string
+  nisaMutualFundAmount: string
+  nisaIndividualStockAmount: string
+  nisaOtherAssetAmount: string
   nisaContributedPrincipal: string
   fujitsuRomanStockShares: string
   holdingStockShares: string
@@ -37,8 +39,10 @@ function valuesFromSnapshot(snapshot: AssetSnapshot): SnapshotFormValues {
   return {
     yearMonth: snapshot.yearMonth,
     cashAmount: String(snapshot.cashAmount),
-    nisaOrkanAmount: String(snapshot.nisaOrkanAmount),
-    nisaSp500Amount: String(snapshot.nisaSp500Amount),
+    securitiesCashAmount: String(snapshot.securitiesCashAmount),
+    nisaMutualFundAmount: String(snapshot.nisaMutualFundAmount),
+    nisaIndividualStockAmount: String(snapshot.nisaIndividualStockAmount),
+    nisaOtherAssetAmount: String(snapshot.nisaOtherAssetAmount),
     nisaContributedPrincipal: String(snapshot.nisaContributedPrincipal),
     fujitsuRomanStockShares: String(snapshot.fujitsuRomanStockShares),
     holdingStockShares: String(snapshot.holdingStockShares),
@@ -63,8 +67,18 @@ function newValues(
   return {
     yearMonth,
     cashAmount: latest ? String(latest.cashAmount) : '',
-    nisaOrkanAmount: latest ? String(latest.nisaOrkanAmount) : '',
-    nisaSp500Amount: latest ? String(latest.nisaSp500Amount) : '',
+    securitiesCashAmount: latest
+      ? String(latest.securitiesCashAmount)
+      : '0',
+    nisaMutualFundAmount: latest
+      ? String(latest.nisaMutualFundAmount)
+      : '',
+    nisaIndividualStockAmount: latest
+      ? String(latest.nisaIndividualStockAmount)
+      : '0',
+    nisaOtherAssetAmount: latest
+      ? String(latest.nisaOtherAssetAmount)
+      : '0',
     nisaContributedPrincipal: latest
       ? String(latest.nisaContributedPrincipal)
       : '',
@@ -150,8 +164,10 @@ export function SnapshotDialog({
 
   const previewTotal = useMemo(() => {
     const cash = parseYenInput(form.cashAmount)
-    const orkan = parseYenInput(form.nisaOrkanAmount)
-    const sp500 = parseYenInput(form.nisaSp500Amount)
+    const securitiesCash = parseYenInput(form.securitiesCashAmount)
+    const mutualFunds = parseYenInput(form.nisaMutualFundAmount)
+    const individualStocks = parseYenInput(form.nisaIndividualStockAmount)
+    const otherSecurities = parseYenInput(form.nisaOtherAssetAmount)
     const shares =
       parseNumberInput(form.fujitsuRomanStockShares) +
       parseNumberInput(form.holdingStockShares) +
@@ -159,7 +175,16 @@ export function SnapshotDialog({
     const price = parseNumberInput(form.fujitsuCurrentPrice)
     const carryover = parseYenInput(form.holdingCarryoverAmount)
     const gear = parseYenInput(form.gearResaleAmount)
-    return cash + orkan + sp500 + shares * price + carryover + gear
+    return (
+      cash +
+      securitiesCash +
+      mutualFunds +
+      individualStocks +
+      otherSecurities +
+      shares * price +
+      carryover +
+      gear
+    )
   }, [form])
 
   function update<K extends keyof SnapshotFormValues>(
@@ -183,8 +208,12 @@ export function SnapshotDialog({
           id: snapshot?.id,
           yearMonth: form.yearMonth,
           cashAmount: parseYenInput(form.cashAmount),
-          nisaOrkanAmount: parseYenInput(form.nisaOrkanAmount),
-          nisaSp500Amount: parseYenInput(form.nisaSp500Amount),
+          securitiesCashAmount: parseYenInput(form.securitiesCashAmount),
+          nisaMutualFundAmount: parseYenInput(form.nisaMutualFundAmount),
+          nisaIndividualStockAmount: parseYenInput(
+            form.nisaIndividualStockAmount,
+          ),
+          nisaOtherAssetAmount: parseYenInput(form.nisaOtherAssetAmount),
           nisaContributedPrincipal: parseYenInput(
             form.nisaContributedPrincipal,
           ),
@@ -284,7 +313,7 @@ export function SnapshotDialog({
             <Field
               label="富士通 株価"
               htmlFor="snap-fujitsu-price"
-              hint="持株会とロマン枠の評価に使います。"
+              hint="持株会・引出し済み・ロマン枠の評価に使います。"
             >
               <MoneyInput
                 id="snap-fujitsu-price"
@@ -312,7 +341,11 @@ export function SnapshotDialog({
             </h3>
           </div>
           <FieldGrid>
-            <Field label="現預金" htmlFor="snap-cash">
+            <Field
+              label="現預金（銀行）"
+              htmlFor="snap-cash"
+              hint="楽天銀行・SMBCなど銀行口座の合計。"
+            >
               <MoneyInput
                 id="snap-cash"
                 value={form.cashAmount}
@@ -320,32 +353,72 @@ export function SnapshotDialog({
                 placeholder="0"
               />
             </Field>
-            <Field label="NISA累計元本" htmlFor="snap-principal" hint="NISAの目標額に対する進捗に使う簿価ベースの金額。">
+            <Field
+              label="楽天証券の預り金"
+              htmlFor="snap-securities-cash"
+              hint="CSVの「預り金合計」。"
+            >
+              <MoneyInput
+                id="snap-securities-cash"
+                value={form.securitiesCashAmount}
+                onChange={(event) =>
+                  update('securitiesCashAmount', event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field
+              label="投資信託の評価額"
+              htmlFor="snap-mutual-funds"
+              hint="楽天証券の投資信託の合計。"
+            >
+              <MoneyInput
+                id="snap-mutual-funds"
+                value={form.nisaMutualFundAmount}
+                onChange={(event) =>
+                  update('nisaMutualFundAmount', event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field
+              label="個別株の評価額"
+              htmlFor="snap-individual-stocks"
+              hint="富士通のロマン枠を除く個別株。"
+            >
+              <MoneyInput
+                id="snap-individual-stocks"
+                value={form.nisaIndividualStockAmount}
+                onChange={(event) =>
+                  update('nisaIndividualStockAmount', event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field
+              label="その他の証券"
+              htmlFor="snap-other-securities"
+              hint="債券・金など、投資信託と株式以外。"
+            >
+              <MoneyInput
+                id="snap-other-securities"
+                value={form.nisaOtherAssetAmount}
+                onChange={(event) =>
+                  update('nisaOtherAssetAmount', event.target.value)
+                }
+                placeholder="0"
+              />
+            </Field>
+            <Field
+              label="NISA累計元本"
+              htmlFor="snap-principal"
+              hint="NISAの目標額に対する進捗に使う簿価ベースの金額。"
+            >
               <MoneyInput
                 id="snap-principal"
                 value={form.nisaContributedPrincipal}
                 onChange={(event) =>
                   update('nisaContributedPrincipal', event.target.value)
-                }
-                placeholder="0"
-              />
-            </Field>
-            <Field label="オルカン評価額" htmlFor="snap-orkan">
-              <MoneyInput
-                id="snap-orkan"
-                value={form.nisaOrkanAmount}
-                onChange={(event) =>
-                  update('nisaOrkanAmount', event.target.value)
-                }
-                placeholder="0"
-              />
-            </Field>
-            <Field label="S&P 500 評価額" htmlFor="snap-sp500">
-              <MoneyInput
-                id="snap-sp500"
-                value={form.nisaSp500Amount}
-                onChange={(event) =>
-                  update('nisaSp500Amount', event.target.value)
                 }
                 placeholder="0"
               />

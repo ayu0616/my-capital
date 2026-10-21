@@ -1,4 +1,4 @@
-import { asc, desc } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import { getDb } from '../db/client.server'
 import {
   DEFAULT_ACCOUNTS,
@@ -13,6 +13,8 @@ import {
   financialAccounts,
   holdingStockStatus,
   holdingWithdrawals,
+  securitiesHoldings,
+  securitiesImportBatches,
   selfInvestments,
 } from '../db/schema'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
@@ -123,19 +125,42 @@ export async function fetchDashboardData() {
 export async function fetchAssetsData() {
   await ensureBaseRows()
   const db = getDb()
-  const [settings, holding, withdrawals, snapshots, gears] = await Promise.all([
-    readSettings(),
-    readHolding(),
-    readHoldingWithdrawals(),
-    db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
-    db.select().from(cameraGears),
-  ])
+  const [settings, holding, withdrawals, snapshots, gears, latestBatch] =
+    await Promise.all([
+      readSettings(),
+      readHolding(),
+      readHoldingWithdrawals(),
+      db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
+      db.select().from(cameraGears),
+      db
+        .select()
+        .from(securitiesImportBatches)
+        .orderBy(
+          desc(securitiesImportBatches.asOfDate),
+          desc(securitiesImportBatches.importedAt),
+        )
+        .limit(1),
+    ])
+  const batch = latestBatch[0] ?? null
+  const holdings = batch
+    ? await db
+        .select()
+        .from(securitiesHoldings)
+        .where(
+          and(
+            eq(securitiesHoldings.asOfDate, batch.asOfDate),
+            eq(securitiesHoldings.account, batch.account),
+          ),
+        )
+        .orderBy(desc(securitiesHoldings.marketValue))
+    : []
   return {
     settings,
     holding,
     withdrawals,
     snapshots,
     gears,
+    securities: { batch, holdings },
     today: toDateOnlyString(todayDateOnly()),
   }
 }
@@ -182,6 +207,7 @@ export async function fetchSettingsData() {
     snapshotCount,
     gearCount,
     investmentCount,
+    securitiesCount,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -193,6 +219,7 @@ export async function fetchSettingsData() {
     db.select().from(assetSnapshots),
     db.select().from(cameraGears),
     db.select().from(selfInvestments),
+    db.select().from(securitiesHoldings),
   ])
   return {
     settings,
@@ -204,6 +231,7 @@ export async function fetchSettingsData() {
       gears: gearCount.length,
       investments: investmentCount.length,
       withdrawals: withdrawals.length,
+      securities: securitiesCount.length,
     },
   }
 }

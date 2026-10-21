@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { NisaCard } from '../components/dashboard/nisa-card'
 import { TrendCard } from '../components/dashboard/trend-card'
+import { SecuritiesCard } from '../components/assets/securities-card'
 import { SnapshotDialog } from '../components/assets/snapshot-dialog'
 import { Button } from '../components/ui/button'
 import {
@@ -55,7 +56,7 @@ export const Route = createFileRoute('/assets')({
 })
 
 function AssetsPage() {
-  const { settings, holding, withdrawals, snapshots, gears, today } =
+  const { settings, holding, withdrawals, snapshots, gears, securities, today } =
     Route.useLoaderData()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -155,7 +156,7 @@ function AssetsPage() {
           value={formatYen(portfolio.financialTotal)}
           icon={Landmark}
           tone="ink"
-          hint="現預金＋投資信託＋富士通＋引出し済み＋繰越金"
+          hint="現預金＋証券預り金＋投資信託＋個別株＋富士通＋引出し済み＋繰越金"
         />
         <MetricCard
           label="NISA累計元本"
@@ -188,6 +189,12 @@ function AssetsPage() {
         <NisaCard className="lg:col-span-5" plan={nisa} />
       </div>
 
+      <SecuritiesCard
+        batch={securities.batch}
+        holdings={securities.holdings}
+        className="mt-4"
+      />
+
       <Card className="mt-4">
         <CardHeader className="items-center">
           <div>
@@ -213,12 +220,14 @@ function AssetsPage() {
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[820px] border-collapse text-left">
+                <table className="w-full min-w-[1000px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-line text-[0.56rem] font-bold uppercase tracking-[0.12em] text-muted">
                       <th className="py-2.5 pr-3 font-bold">年月</th>
                       <th className="px-3 py-2.5 text-right font-bold">現預金</th>
+                      <th className="px-3 py-2.5 text-right font-bold">証券預り金</th>
                       <th className="px-3 py-2.5 text-right font-bold">投資信託</th>
+                      <th className="px-3 py-2.5 text-right font-bold">個別株・他</th>
                       <th className="px-3 py-2.5 text-right font-bold">NISA元本</th>
                       <th className="px-3 py-2.5 text-right font-bold">富士通</th>
                       <th className="px-3 py-2.5 text-right font-bold">機材</th>
@@ -252,8 +261,15 @@ function AssetsPage() {
                             {formatYen(snapshot.cashAmount)}
                           </td>
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
+                            {formatYen(snapshot.securitiesCashAmount)}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
+                            {formatYen(snapshot.nisaMutualFundAmount)}
+                          </td>
+                          <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
                             {formatYen(
-                              snapshot.nisaOrkanAmount + snapshot.nisaSp500Amount,
+                              snapshot.nisaIndividualStockAmount +
+                                snapshot.nisaOtherAssetAmount,
                             )}
                           </td>
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
@@ -329,7 +345,15 @@ function AssetsPage() {
                           現金 {formatYen(snapshot.cashAmount)}
                         </span>
                         <span className="rounded-full bg-canvas/70 px-2 py-0.5">
-                          投資 {formatYen(snapshot.nisaOrkanAmount + snapshot.nisaSp500Amount)}
+                          証券 {formatYen(snapshot.securitiesCashAmount)}
+                        </span>
+                        <span className="rounded-full bg-canvas/70 px-2 py-0.5">
+                          投資{' '}
+                          {formatYen(
+                            snapshot.nisaMutualFundAmount +
+                              snapshot.nisaIndividualStockAmount +
+                              snapshot.nisaOtherAssetAmount,
+                          )}
                         </span>
                         {snapshot.withdrawnHoldingShares > 0 ? (
                           <span className="rounded-full bg-canvas/70 px-2 py-0.5">

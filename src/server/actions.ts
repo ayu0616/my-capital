@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db/client.server'
 import {
@@ -9,6 +9,8 @@ import {
   careerEvents,
   holdingStockStatus,
   holdingWithdrawals,
+  securitiesHoldings,
+  securitiesImportBatches,
   selfInvestments,
 } from '../db/schema'
 import { readHolding, readSettings } from './db.server'
@@ -179,8 +181,10 @@ const snapshotInput = z.object({
   id: z.string().min(1).optional(),
   yearMonth,
   cashAmount: z.number().int().min(0).max(1_000_000_000_000),
-  nisaOrkanAmount: z.number().int().min(0).max(1_000_000_000_000),
-  nisaSp500Amount: z.number().int().min(0).max(1_000_000_000_000),
+  securitiesCashAmount: z.number().int().min(0).max(1_000_000_000_000),
+  nisaMutualFundAmount: z.number().int().min(0).max(1_000_000_000_000),
+  nisaIndividualStockAmount: z.number().int().min(0).max(1_000_000_000_000),
+  nisaOtherAssetAmount: z.number().int().min(0).max(1_000_000_000_000),
   nisaContributedPrincipal: z.number().int().min(0).max(1_000_000_000_000),
   fujitsuRomanStockShares: z.number().min(0).max(10_000_000),
   holdingStockShares: z.number().min(0).max(10_000_000),
@@ -203,8 +207,12 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
         .set({
           yearMonth: data.yearMonth,
           cashAmount: data.cashAmount,
-          nisaOrkanAmount: data.nisaOrkanAmount,
-          nisaSp500Amount: data.nisaSp500Amount,
+          securitiesCashAmount: data.securitiesCashAmount,
+          nisaMutualFundAmount: data.nisaMutualFundAmount,
+          nisaIndividualStockAmount: data.nisaIndividualStockAmount,
+          nisaOtherAssetAmount: data.nisaOtherAssetAmount,
+          nisaOrkanAmount: 0,
+          nisaSp500Amount: 0,
           nisaContributedPrincipal: data.nisaContributedPrincipal,
           fujitsuRomanStockShares: data.fujitsuRomanStockShares,
           holdingStockShares: data.holdingStockShares,
@@ -234,8 +242,12 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
       id,
       yearMonth: data.yearMonth,
       cashAmount: data.cashAmount,
-      nisaOrkanAmount: data.nisaOrkanAmount,
-      nisaSp500Amount: data.nisaSp500Amount,
+      securitiesCashAmount: data.securitiesCashAmount,
+      nisaMutualFundAmount: data.nisaMutualFundAmount,
+      nisaIndividualStockAmount: data.nisaIndividualStockAmount,
+      nisaOtherAssetAmount: data.nisaOtherAssetAmount,
+      nisaOrkanAmount: 0,
+      nisaSp500Amount: 0,
       nisaContributedPrincipal: data.nisaContributedPrincipal,
       fujitsuRomanStockShares: data.fujitsuRomanStockShares,
       holdingStockShares: data.holdingStockShares,
@@ -256,6 +268,228 @@ export const deleteSnapshot = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await getDb().delete(assetSnapshots).where(eq(assetSnapshots.id, data.id))
     return { ok: true as const }
+  })
+
+/* -------------------------------------------------------------------------- */
+/*  Rakuten Securities CSV import                                              */
+/* -------------------------------------------------------------------------- */
+
+const securitiesHoldingInput = z.object({
+  type: z.string().trim().max(60),
+  category: z.enum(['stock', 'fund', 'other']),
+  code: z.string().trim().max(40).default(''),
+  name: z.string().trim().min(1).max(200),
+  accountType: z.string().trim().max(80).default(''),
+  quantity: z.number().min(0).max(1_000_000_000),
+  unit: z.string().trim().max(20).default(''),
+  averagePrice: z.number().min(0).max(1_000_000_000),
+  currentPrice: z.number().min(0).max(1_000_000_000),
+  marketValue: z.number().int().min(0).max(1_000_000_000_000),
+  profitLoss: z
+    .number()
+    .int()
+    .min(-1_000_000_000_000)
+    .max(1_000_000_000_000),
+  profitLossPercent: z.number().min(-1_000).max(1_000),
+})
+
+const securitiesImportInput = z.object({
+  asOfDate: dateString,
+  fileName: z.string().trim().max(200).default(''),
+  cashValue: z.number().int().min(0).max(1_000_000_000_000),
+  updateNisaPrincipal: z.boolean().default(false),
+  holdings: z.array(securitiesHoldingInput).min(1).max(500),
+})
+
+function isNisaAccountType(accountType: string): boolean {
+  return /NISA|成長投資枠|つみたて投資枠/i.test(accountType)
+}
+
+function isFujitsuHolding(code: string, name: string): boolean {
+  const normalizedCode = code.replace(/[^0-9]/g, '')
+  return normalizedCode.startsWith('6702') || name.includes('富士通')
+}
+
+export const importRakutenSecurities = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => securitiesImportInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const now = new Date().toISOString()
+    const batchId = newId()
+    const account = '楽天証券'
+
+    const rows = data.holdings.map((holding) => {
+      const divisor = holding.category === 'fund' ? 10_000 : 1
+      const costBasis = Math.round(
+        (holding.quantity * holding.averagePrice) / divisor,
+      )
+      return {
+        id: newId(),
+        batchId,
+        asOfDate: data.asOfDate,
+        account,
+        category: holding.category,
+        type: holding.type,
+        code: holding.code,
+        name: holding.name,
+        accountType: holding.accountType,
+        quantity: holding.quantity,
+        unit: holding.unit,
+        averagePrice: holding.averagePrice,
+        currentPrice: holding.currentPrice,
+        marketValue: holding.marketValue,
+        profitLoss: holding.profitLoss,
+        profitLossPercent: holding.profitLossPercent,
+        costBasis,
+        isFujitsu: isFujitsuHolding(holding.code, holding.name) ? 1 : 0,
+        source: 'rakuten_csv',
+        importedAt: now,
+      }
+    })
+
+    const stockValue = rows
+      .filter((row) => row.category === 'stock' && row.isFujitsu === 0)
+      .reduce((sum, row) => sum + row.marketValue, 0)
+    const fundValue = rows
+      .filter((row) => row.category === 'fund')
+      .reduce((sum, row) => sum + row.marketValue, 0)
+    const otherValue = rows
+      .filter((row) => row.category === 'other')
+      .reduce((sum, row) => sum + row.marketValue, 0)
+    const fujitsuRows = rows.filter((row) => row.isFujitsu === 1)
+    const fujitsuShares = fujitsuRows.reduce(
+      (sum, row) => sum + row.quantity,
+      0,
+    )
+    const fujitsuValue = fujitsuRows.reduce(
+      (sum, row) => sum + row.marketValue,
+      0,
+    )
+    const fujitsuPrice =
+      fujitsuRows.find((row) => row.currentPrice > 0)?.currentPrice ?? 0
+    const productValue = rows.reduce(
+      (sum, row) => sum + row.marketValue,
+      0,
+    )
+    const totalValue = productValue + data.cashValue
+    const nisaCostBasis = rows
+      .filter((row) => isNisaAccountType(row.accountType))
+      .reduce((sum, row) => sum + row.costBasis, 0)
+
+    await db
+      .delete(securitiesHoldings)
+      .where(
+        and(
+          eq(securitiesHoldings.asOfDate, data.asOfDate),
+          eq(securitiesHoldings.account, account),
+        ),
+      )
+    await db
+      .delete(securitiesImportBatches)
+      .where(
+        and(
+          eq(securitiesImportBatches.asOfDate, data.asOfDate),
+          eq(securitiesImportBatches.account, account),
+        ),
+      )
+
+    for (let index = 0; index < rows.length; index += 6) {
+      await db.insert(securitiesHoldings).values(rows.slice(index, index + 6))
+    }
+
+    await db.insert(securitiesImportBatches).values({
+      id: batchId,
+      asOfDate: data.asOfDate,
+      account,
+      fileName: data.fileName,
+      totalValue,
+      productValue,
+      cashValue: data.cashValue,
+      stockValue,
+      fundValue,
+      otherValue,
+      fujitsuValue,
+      holdingCount: rows.length,
+      importedAt: now,
+    })
+
+    const [latest] = await db
+      .select()
+      .from(assetSnapshots)
+      .orderBy(desc(assetSnapshots.yearMonth))
+      .limit(1)
+    const holding = await readHolding()
+    const yearMonth = data.asOfDate.slice(0, 7)
+    const [existing] = await db
+      .select()
+      .from(assetSnapshots)
+      .where(eq(assetSnapshots.yearMonth, yearMonth))
+      .limit(1)
+    const base = existing ?? latest ?? null
+    const nextFujitsuPrice =
+      fujitsuPrice ||
+      base?.fujitsuCurrentPrice ||
+      holding.latestStockPrice
+    const nextNisaPrincipal =
+      data.updateNisaPrincipal && nisaCostBasis > 0
+        ? nisaCostBasis
+        : base?.nisaContributedPrincipal ?? 0
+    const values = {
+      cashAmount: base?.cashAmount ?? 0,
+      securitiesCashAmount: data.cashValue,
+      nisaMutualFundAmount: fundValue,
+      nisaIndividualStockAmount: stockValue,
+      nisaOtherAssetAmount: otherValue,
+      nisaOrkanAmount: 0,
+      nisaSp500Amount: 0,
+      nisaContributedPrincipal: nextNisaPrincipal,
+      fujitsuRomanStockShares: fujitsuShares,
+      holdingStockShares:
+        base?.holdingStockShares ?? holding.currentAccumulatedShares,
+      withdrawnHoldingShares: base?.withdrawnHoldingShares ?? 0,
+      holdingAverageAcquisitionPrice:
+        base?.holdingAverageAcquisitionPrice ||
+        holding.averageAcquisitionPrice,
+      holdingCarryoverAmount:
+        base?.holdingCarryoverAmount ?? holding.carryoverAmount,
+      fujitsuCurrentPrice: nextFujitsuPrice,
+      gearResaleAmount: base?.gearResaleAmount ?? 0,
+      notes:
+        existing?.notes ??
+        `楽天証券の保有資産CSVを取り込み（${data.fileName || 'CSV'}）`,
+      updatedAt: now,
+    }
+
+    if (existing) {
+      await db
+        .update(assetSnapshots)
+        .set(values)
+        .where(eq(assetSnapshots.id, existing.id))
+    } else {
+      await db.insert(assetSnapshots).values({
+        id: newId(),
+        yearMonth,
+        ...values,
+        createdAt: now,
+      })
+    }
+
+    if (nextFujitsuPrice > 0) {
+      await db
+        .update(holdingStockStatus)
+        .set({ latestStockPrice: nextFujitsuPrice, updatedAt: now })
+        .where(eq(holdingStockStatus.id, holding.id))
+    }
+
+    return {
+      ok: true as const,
+      batchId,
+      yearMonth,
+      totalValue,
+      productValue,
+      cashValue: data.cashValue,
+      holdingCount: rows.length,
+    }
   })
 
 /* -------------------------------------------------------------------------- */

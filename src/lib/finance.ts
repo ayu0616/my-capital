@@ -22,10 +22,12 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export const ALLOCATION_COLORS = {
-  orkan: '#1E5B45',
-  sp500: '#5B9C82',
+  mutualFunds: '#1E5B45',
+  individualStocks: '#5B9C82',
+  otherSecurities: '#8A9C8D',
   fujitsu: '#C1913F',
   carryover: '#D8C7A3',
+  securitiesCash: '#C9C0AE',
   cash: '#AEB6AD',
   gear: '#7A6550',
 } as const
@@ -72,8 +74,10 @@ export function snapshotTotal(snapshot: AssetSnapshot): number {
     safe(snapshot.fujitsuRomanStockShares)
   return (
     safe(snapshot.cashAmount) +
-    safe(snapshot.nisaOrkanAmount) +
-    safe(snapshot.nisaSp500Amount) +
+    safe(snapshot.securitiesCashAmount) +
+    safe(snapshot.nisaMutualFundAmount) +
+    safe(snapshot.nisaIndividualStockAmount) +
+    safe(snapshot.nisaOtherAssetAmount) +
     fujitsuShares * safe(snapshot.fujitsuCurrentPrice) +
     safe(snapshot.holdingCarryoverAmount) +
     safe(snapshot.gearResaleAmount)
@@ -106,8 +110,9 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
           safe(snapshot.fujitsuRomanStockShares)) *
         safe(snapshot.fujitsuCurrentPrice)
       const invested =
-        safe(snapshot.nisaOrkanAmount) +
-        safe(snapshot.nisaSp500Amount) +
+        safe(snapshot.nisaMutualFundAmount) +
+        safe(snapshot.nisaIndividualStockAmount) +
+        safe(snapshot.nisaOtherAssetAmount) +
         fujitsu
       return {
         yearMonth: snapshot.yearMonth,
@@ -117,7 +122,7 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
         financial: snapshotFinancialTotal(snapshot),
         gear: safe(snapshot.gearResaleAmount),
         invested,
-        cash: safe(snapshot.cashAmount),
+        cash: safe(snapshot.cashAmount) + safe(snapshot.securitiesCashAmount),
         fujitsu,
       }
     })
@@ -128,7 +133,15 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
 /* -------------------------------------------------------------------------- */
 
 export interface PortfolioSlice {
-  key: 'orkan' | 'sp500' | 'fujitsu' | 'carryover' | 'cash' | 'gear'
+  key:
+    | 'mutualFunds'
+    | 'individualStocks'
+    | 'otherSecurities'
+    | 'fujitsu'
+    | 'carryover'
+    | 'securitiesCash'
+    | 'cash'
+    | 'gear'
   label: string
   amount: number
   ratio: number
@@ -150,8 +163,10 @@ export interface Portfolio {
 
 function buildPortfolio(params: {
   cash: number
-  orkan: number
-  sp500: number
+  securitiesCash: number
+  mutualFunds: number
+  individualStocks: number
+  otherSecurities: number
   fujitsuShares: number
   fujitsuPrice: number
   carryover: number
@@ -160,28 +175,34 @@ function buildPortfolio(params: {
 }): Portfolio {
   const fujitsuValue = params.fujitsuShares * params.fujitsuPrice
   const amounts = {
-    orkan: safe(params.orkan),
-    sp500: safe(params.sp500),
+    mutualFunds: safe(params.mutualFunds),
+    individualStocks: safe(params.individualStocks),
+    otherSecurities: safe(params.otherSecurities),
     fujitsu: safe(fujitsuValue),
     carryover: safe(params.carryover),
+    securitiesCash: safe(params.securitiesCash),
     cash: safe(params.cash),
     gear: safe(params.gear),
   }
   const total = Object.values(amounts).reduce((sum, value) => sum + value, 0)
   const ratioOf = (value: number) => (total > 0 ? value / total : 0)
   const slices: PortfolioSlice[] = [
-    { key: 'orkan', label: 'オルカン', amount: amounts.orkan, ratio: ratioOf(amounts.orkan), color: ALLOCATION_COLORS.orkan },
-    { key: 'sp500', label: 'S&P 500', amount: amounts.sp500, ratio: ratioOf(amounts.sp500), color: ALLOCATION_COLORS.sp500 },
+    { key: 'mutualFunds', label: '投資信託', amount: amounts.mutualFunds, ratio: ratioOf(amounts.mutualFunds), color: ALLOCATION_COLORS.mutualFunds },
+    { key: 'individualStocks', label: '個別株（富士通ロマン枠を除く）', amount: amounts.individualStocks, ratio: ratioOf(amounts.individualStocks), color: ALLOCATION_COLORS.individualStocks },
+    { key: 'otherSecurities', label: 'その他の証券', amount: amounts.otherSecurities, ratio: ratioOf(amounts.otherSecurities), color: ALLOCATION_COLORS.otherSecurities },
     { key: 'fujitsu', label: '富士通（持株会＋引出し済み＋ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
     { key: 'carryover', label: '持株会の繰越金', amount: amounts.carryover, ratio: ratioOf(amounts.carryover), color: ALLOCATION_COLORS.carryover },
-    { key: 'cash', label: '現預金', amount: amounts.cash, ratio: ratioOf(amounts.cash), color: ALLOCATION_COLORS.cash },
+    { key: 'securitiesCash', label: '証券口座の預り金', amount: amounts.securitiesCash, ratio: ratioOf(amounts.securitiesCash), color: ALLOCATION_COLORS.securitiesCash },
+    { key: 'cash', label: '現預金（銀行）', amount: amounts.cash, ratio: ratioOf(amounts.cash), color: ALLOCATION_COLORS.cash },
     { key: 'gear', label: 'カメラ機材', amount: amounts.gear, ratio: ratioOf(amounts.gear), color: ALLOCATION_COLORS.gear },
   ]
   const financialTotal =
-    amounts.orkan +
-    amounts.sp500 +
+    amounts.mutualFunds +
+    amounts.individualStocks +
+    amounts.otherSecurities +
     amounts.fujitsu +
     amounts.carryover +
+    amounts.securitiesCash +
     amounts.cash
   return {
     total,
@@ -206,8 +227,10 @@ export function buildCurrentPortfolio(
 ): Portfolio {
   return buildPortfolio({
     cash: safe(latest?.cashAmount),
-    orkan: safe(latest?.nisaOrkanAmount),
-    sp500: safe(latest?.nisaSp500Amount),
+    securitiesCash: safe(latest?.securitiesCashAmount),
+    mutualFunds: safe(latest?.nisaMutualFundAmount),
+    individualStocks: safe(latest?.nisaIndividualStockAmount),
+    otherSecurities: safe(latest?.nisaOtherAssetAmount),
     fujitsuShares:
       safe(holding.currentAccumulatedShares) +
       safe(withdrawnShares) +
@@ -225,8 +248,10 @@ export function buildSnapshotPortfolio(
 ): Portfolio {
   return buildPortfolio({
     cash: safe(snapshot.cashAmount),
-    orkan: safe(snapshot.nisaOrkanAmount),
-    sp500: safe(snapshot.nisaSp500Amount),
+    securitiesCash: safe(snapshot.securitiesCashAmount),
+    mutualFunds: safe(snapshot.nisaMutualFundAmount),
+    individualStocks: safe(snapshot.nisaIndividualStockAmount),
+    otherSecurities: safe(snapshot.nisaOtherAssetAmount),
     fujitsuShares:
       safe(snapshot.holdingStockShares) +
       safe(snapshot.withdrawnHoldingShares) +

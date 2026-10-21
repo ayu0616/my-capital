@@ -4,6 +4,7 @@ import {
   real,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
 /**
@@ -90,6 +91,69 @@ export const financialAccounts = sqliteTable('financial_accounts', {
 })
 
 /* -------------------------------------------------------------------------- */
+/*  Securities holdings imported from a brokerage CSV                          */
+/* -------------------------------------------------------------------------- */
+
+export const securitiesImportBatches = sqliteTable(
+  'securities_import_batches',
+  {
+    id: text('id').primaryKey(),
+    asOfDate: text('as_of_date').notNull(), // YYYY-MM-DD
+    account: text('account').notNull().default('楽天証券'),
+    fileName: text('file_name').notNull().default(''),
+    totalValue: integer('total_value').notNull().default(0),
+    productValue: integer('product_value').notNull().default(0),
+    cashValue: integer('cash_value').notNull().default(0),
+    stockValue: integer('stock_value').notNull().default(0),
+    fundValue: integer('fund_value').notNull().default(0),
+    otherValue: integer('other_value').notNull().default(0),
+    fujitsuValue: integer('fujitsu_value').notNull().default(0),
+    holdingCount: integer('holding_count').notNull().default(0),
+    importedAt: text('imported_at').notNull(),
+  },
+  (table) => [
+    index('securities_import_batches_as_of_idx').on(table.asOfDate),
+  ],
+)
+
+export const securitiesHoldings = sqliteTable(
+  'securities_holdings',
+  {
+    id: text('id').primaryKey(),
+    batchId: text('batch_id').notNull(),
+    asOfDate: text('as_of_date').notNull(), // YYYY-MM-DD
+    account: text('account').notNull().default('楽天証券'),
+    category: text('category').notNull(), // 'stock' | 'fund' | 'other'
+    type: text('type').notNull(), // 国内株式、投資信託などCSVの種別
+    code: text('code').notNull().default(''),
+    name: text('name').notNull(),
+    accountType: text('account_type').notNull().default(''), // NISA成長投資枠など
+    quantity: real('quantity').notNull().default(0),
+    unit: text('unit').notNull().default(''),
+    averagePrice: real('average_price').notNull().default(0),
+    currentPrice: real('current_price').notNull().default(0),
+    marketValue: integer('market_value').notNull().default(0),
+    profitLoss: integer('profit_loss').notNull().default(0),
+    profitLossPercent: real('profit_loss_percent').notNull().default(0),
+    costBasis: integer('cost_basis').notNull().default(0),
+    isFujitsu: integer('is_fujitsu').notNull().default(0),
+    source: text('source').notNull().default('rakuten_csv'),
+    importedAt: text('imported_at').notNull(),
+  },
+  (table) => [
+    index('securities_holdings_as_of_idx').on(table.asOfDate),
+    index('securities_holdings_batch_idx').on(table.batchId),
+    uniqueIndex('securities_holdings_unique_idx').on(
+      table.asOfDate,
+      table.account,
+      table.code,
+      table.name,
+      table.accountType,
+    ),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Monthly asset snapshots                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -98,9 +162,13 @@ export const assetSnapshots = sqliteTable(
   {
     id: text('id').primaryKey(),
     yearMonth: text('year_month').notNull().unique(), // '2026-10'
-    cashAmount: integer('cash_amount').notNull(), // 現預金
-    nisaOrkanAmount: integer('nisa_orkan_amount').notNull(), // オルカン時価
-    nisaSp500Amount: integer('nisa_sp500_amount').notNull(), // S&P500 時価
+    cashAmount: integer('cash_amount').notNull(), // 銀行などの現預金
+    nisaOrkanAmount: integer('nisa_orkan_amount').notNull().default(0), // 旧: オルカン時価
+    nisaSp500Amount: integer('nisa_sp500_amount').notNull().default(0), // 旧: S&P500 時価
+    nisaMutualFundAmount: integer('nisa_mutual_fund_amount').notNull().default(0), // 投資信託の評価額
+    nisaIndividualStockAmount: integer('nisa_individual_stock_amount').notNull().default(0), // 個別株の評価額（富士通ロマン枠を除く）
+    nisaOtherAssetAmount: integer('nisa_other_asset_amount').notNull().default(0), // 債券・金などその他の証券
+    securitiesCashAmount: integer('securities_cash_amount').notNull().default(0), // 証券口座の預り金
     nisaContributedPrincipal: integer('nisa_contributed_principal').notNull(), // NISA 累計元本
     fujitsuRomanStockShares: real('fujitsu_roman_stock_shares').notNull().default(0), // NISA ロマン枠
     holdingStockShares: real('holding_stock_shares').notNull().default(0), // 持株会の保有株数
@@ -164,6 +232,8 @@ export type AppSettings = typeof appSettings.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
 export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
 export type FinancialAccount = typeof financialAccounts.$inferSelect
+export type SecuritiesImportBatch = typeof securitiesImportBatches.$inferSelect
+export type SecuritiesHolding = typeof securitiesHoldings.$inferSelect
 export type AssetSnapshot = typeof assetSnapshots.$inferSelect
 export type CameraGear = typeof cameraGears.$inferSelect
 export type SelfInvestment = typeof selfInvestments.$inferSelect

@@ -25,8 +25,10 @@ export function NetWorthHero({
   className?: string
 }) {
   const positive = (trend.delta ?? 0) >= 0
-  const cash = portfolio.slices.find((slice) => slice.key === 'cash')
-  const cashRatio = portfolio.total > 0 ? (cash?.amount ?? 0) / portfolio.total : 0
+  const cashAmount = portfolio.slices
+    .filter((slice) => slice.key === 'cash' || slice.key === 'securitiesCash')
+    .reduce((sum, slice) => sum + slice.amount, 0)
+  const cashRatio = portfolio.total > 0 ? cashAmount / portfolio.total : 0
   const overLimit = portfolio.isFujitsuOverLimit
 
   return (
