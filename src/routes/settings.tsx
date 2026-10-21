@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import {
   ArrowUpRight,
+  Building2,
   Camera,
   Database,
   GraduationCap,
@@ -26,7 +27,12 @@ import {
 } from '../components/ui/card'
 import { Badge, Field, FieldGrid, Input, MoneyInput } from '../components/ui/form'
 import { PageHeader } from '../components/ui/page'
-import type { AppSettings, HoldingStockStatus } from '../db/schema'
+import { WithdrawalCard } from '../components/holding/withdrawal-card'
+import type {
+  AppSettings,
+  FinancialAccount,
+  HoldingStockStatus,
+} from '../db/schema'
 import {
   formatMonthEta,
   formatPercent,
@@ -49,7 +55,8 @@ export const Route = createFileRoute('/settings')({
 })
 
 function SettingsPage() {
-  const { settings, holding, counts, authRequired } = Route.useLoaderData()
+  const { settings, holding, withdrawals, accounts, counts, authRequired } =
+    Route.useLoaderData()
   const router = useRouter()
 
   return (
@@ -77,6 +84,12 @@ function SettingsPage() {
           onSaved={() => router.invalidate()}
           className="lg:col-span-5"
         />
+        <WithdrawalCard
+          holding={holding}
+          withdrawals={withdrawals}
+          className="lg:col-span-7"
+        />
+        <AccountsCard accounts={accounts} className="lg:col-span-5" />
         <DataCard counts={counts} className="lg:col-span-7" />
         <AboutCard
           authRequired={authRequired}
@@ -568,6 +581,84 @@ function HoldingForm({
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Accounts                                                                   */
+/* -------------------------------------------------------------------------- */
+
+const ACCOUNT_KIND_LABELS: Record<string, string> = {
+  brokerage: '証券',
+  bank: '銀行',
+  pension: '年金',
+}
+
+function AccountsCard({
+  accounts,
+  className,
+}: {
+  accounts: FinancialAccount[]
+  className?: string
+}) {
+  return (
+    <Card className={className}>
+      <CardHeader className="items-start">
+        <div>
+          <CardKicker>Accounts</CardKicker>
+          <CardTitle className="mt-1.5">口座と役割</CardTitle>
+          <CardDescription>
+            資産の置き場所と、このアプリでの扱いを整理しています。
+          </CardDescription>
+        </div>
+        <Building2 className="size-4 text-muted" />
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-2.5">
+          {accounts.map((account) => {
+            const Icon =
+              account.kind === 'bank'
+                ? Wallet
+                : account.kind === 'pension'
+                  ? ShieldCheck
+                  : Landmark
+            return (
+              <li
+                key={account.id}
+                className="rounded-xl border border-line/80 bg-canvas/35 px-3.5 py-3"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-brand/10 bg-brand-soft text-brand">
+                    <Icon className="size-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[0.7rem] font-bold text-ink">
+                        {account.name}
+                      </p>
+                      <Badge variant="outline" className="text-[0.52rem]">
+                        {ACCOUNT_KIND_LABELS[account.kind] ?? account.kind}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-[0.62rem] font-medium text-ink-soft">
+                      {account.role}
+                    </p>
+                    {account.notes ? (
+                      <p className="mt-1 text-[0.56rem] leading-relaxed text-muted">
+                        {account.notes}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="mt-4 border-t border-line/70 pt-3 text-[0.56rem] leading-relaxed text-muted">
+          残高は月次スナップショット、持株会の株数は「持株会の引出し」、楽天証券の銘柄はCSV取り込みで管理します。
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Data & environment                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -681,7 +772,7 @@ function AboutCard({
             {
               icon: Landmark,
               title: '持株会',
-              description: '富士通株の保有数と目標株数までの進捗',
+              description: '富士通株の保有数、目標株数までの進捗、SMBC日興証券への引出し履歴',
             },
             {
               icon: Camera,

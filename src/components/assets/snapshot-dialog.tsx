@@ -25,6 +25,7 @@ type SnapshotFormValues = {
   nisaContributedPrincipal: string
   fujitsuRomanStockShares: string
   holdingStockShares: string
+  withdrawnHoldingShares: string
   holdingAverageAcquisitionPrice: string
   holdingCarryoverAmount: string
   fujitsuCurrentPrice: string
@@ -41,6 +42,7 @@ function valuesFromSnapshot(snapshot: AssetSnapshot): SnapshotFormValues {
     nisaContributedPrincipal: String(snapshot.nisaContributedPrincipal),
     fujitsuRomanStockShares: String(snapshot.fujitsuRomanStockShares),
     holdingStockShares: String(snapshot.holdingStockShares),
+    withdrawnHoldingShares: String(snapshot.withdrawnHoldingShares),
     holdingAverageAcquisitionPrice: String(
       snapshot.holdingAverageAcquisitionPrice || '',
     ),
@@ -56,6 +58,7 @@ function newValues(
   holding: HoldingStockStatus,
   gearResaleTotal: number,
   yearMonth: string,
+  withdrawnShares: number,
 ): SnapshotFormValues {
   return {
     yearMonth,
@@ -69,6 +72,7 @@ function newValues(
       ? String(latest.fujitsuRomanStockShares)
       : '0',
     holdingStockShares: String(holding.currentAccumulatedShares || 0),
+    withdrawnHoldingShares: String(withdrawnShares || 0),
     holdingAverageAcquisitionPrice: String(
       holding.averageAcquisitionPrice || '',
     ),
@@ -87,6 +91,7 @@ export function SnapshotDialog({
   latest,
   holding,
   gearResaleTotal,
+  withdrawnShares,
   defaultYearMonth = null,
 }: {
   open: boolean
@@ -96,6 +101,7 @@ export function SnapshotDialog({
   latest: AssetSnapshot | null
   holding: HoldingStockStatus
   gearResaleTotal: number
+  withdrawnShares: number
   /** null = current month, '' = blank month picker, or a YYYY-MM value. */
   defaultYearMonth?: string | null
 }) {
@@ -106,6 +112,7 @@ export function SnapshotDialog({
       holding,
       gearResaleTotal,
       defaultYearMonth ?? currentYearMonth(),
+      withdrawnShares,
     ),
   )
   const [pending, setPending] = useState(false)
@@ -121,10 +128,19 @@ export function SnapshotDialog({
             holding,
             gearResaleTotal,
             defaultYearMonth ?? currentYearMonth(),
+            withdrawnShares,
           ),
     )
     setError(null)
-  }, [open, snapshot, latest, holding, gearResaleTotal, defaultYearMonth])
+  }, [
+    open,
+    snapshot,
+    latest,
+    holding,
+    gearResaleTotal,
+    withdrawnShares,
+    defaultYearMonth,
+  ])
 
   const duplicate = snapshots.some(
     (item) =>
@@ -138,7 +154,8 @@ export function SnapshotDialog({
     const sp500 = parseYenInput(form.nisaSp500Amount)
     const shares =
       parseNumberInput(form.fujitsuRomanStockShares) +
-      parseNumberInput(form.holdingStockShares)
+      parseNumberInput(form.holdingStockShares) +
+      parseNumberInput(form.withdrawnHoldingShares)
     const price = parseNumberInput(form.fujitsuCurrentPrice)
     const carryover = parseYenInput(form.holdingCarryoverAmount)
     const gear = parseYenInput(form.gearResaleAmount)
@@ -175,6 +192,9 @@ export function SnapshotDialog({
             form.fujitsuRomanStockShares,
           ),
           holdingStockShares: parseNumberInput(form.holdingStockShares),
+          withdrawnHoldingShares: parseNumberInput(
+            form.withdrawnHoldingShares,
+          ),
           holdingAverageAcquisitionPrice: parseNumberInput(
             form.holdingAverageAcquisitionPrice,
           ),
@@ -362,6 +382,20 @@ export function SnapshotDialog({
                 value={form.holdingStockShares}
                 onChange={(event) =>
                   update('holdingStockShares', event.target.value)
+                }
+              />
+            </Field>
+            <Field
+              label="引出し済みの株数"
+              htmlFor="snap-withdrawn-shares"
+              hint="SMBC日興証券へ移動した株数。持株会の株数には含めません。"
+            >
+              <Input
+                id="snap-withdrawn-shares"
+                inputMode="decimal"
+                value={form.withdrawnHoldingShares}
+                onChange={(event) =>
+                  update('withdrawnHoldingShares', event.target.value)
                 }
               />
             </Field>

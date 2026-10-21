@@ -47,6 +47,48 @@ export const holdingStockStatus = sqliteTable('holding_stock_status', {
   updatedAt: text('updated_at').notNull(),
 })
 
+/**
+ * 持株会から証券口座へ引き出した履歴。
+ * 引出し時に持株会の現在株数を減らし、この履歴に移動した株数を残す。
+ */
+export const holdingWithdrawals = sqliteTable(
+  'holding_withdrawals',
+  {
+    id: text('id').primaryKey(),
+    withdrawnAt: text('withdrawn_at').notNull(), // YYYY-MM-DD
+    shares: real('shares').notNull().default(0),
+    averageAcquisitionPrice: real('average_acquisition_price').notNull().default(0),
+    stockPrice: real('stock_price').notNull().default(0),
+    destination: text('destination').notNull().default('SMBC日興証券'),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('holding_withdrawals_withdrawn_at_idx').on(table.withdrawnAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
+/*  Financial accounts (metadata)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 口座の役割を整理するためのメタデータ。残高そのものは
+ * asset_snapshots と持株会・証券インポート側で管理する。
+ */
+export const financialAccounts = sqliteTable('financial_accounts', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  institution: text('institution').notNull(),
+  kind: text('kind').notNull(), // 'brokerage' | 'bank' | 'pension'
+  role: text('role').notNull().default(''),
+  notes: text('notes'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
 /* -------------------------------------------------------------------------- */
 /*  Monthly asset snapshots                                                    */
 /* -------------------------------------------------------------------------- */
@@ -62,6 +104,7 @@ export const assetSnapshots = sqliteTable(
     nisaContributedPrincipal: integer('nisa_contributed_principal').notNull(), // NISA 累計元本
     fujitsuRomanStockShares: real('fujitsu_roman_stock_shares').notNull().default(0), // NISA ロマン枠
     holdingStockShares: real('holding_stock_shares').notNull().default(0), // 持株会の保有株数
+    withdrawnHoldingShares: real('withdrawn_holding_shares').notNull().default(0), // 証券口座へ引出し済みの株数
     holdingAverageAcquisitionPrice: real('holding_average_acquisition_price').notNull().default(0), // 持株会の平均取得単価
     holdingCarryoverAmount: integer('holding_carryover_amount').notNull().default(0), // 持株会の繰越金
     fujitsuCurrentPrice: real('fujitsu_current_price').notNull(), // 基準株価
@@ -119,6 +162,8 @@ export const careerEvents = sqliteTable('career_events', {
 
 export type AppSettings = typeof appSettings.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
+export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
+export type FinancialAccount = typeof financialAccounts.$inferSelect
 export type AssetSnapshot = typeof assetSnapshots.$inferSelect
 export type CameraGear = typeof cameraGears.$inferSelect
 export type SelfInvestment = typeof selfInvestments.$inferSelect

@@ -34,21 +34,34 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const data = Route.useLoaderData()
-  const { settings, holding, snapshots, gears, investments, careerEvents } = data
+  const {
+    settings,
+    holding,
+    withdrawals,
+    snapshots,
+    gears,
+    investments,
+    careerEvents,
+  } = data
   const today = parseDateOnly(data.today)
   const latest = snapshots.at(-1) ?? null
   const previous = snapshots.at(-2) ?? null
   const gearSummary = buildGearSummary(gears)
+  const withdrawnShares = withdrawals.reduce(
+    (sum, withdrawal) => sum + withdrawal.shares,
+    0,
+  )
   const portfolio = buildCurrentPortfolio(
     latest,
     holding,
     gearSummary.resaleTotal,
     settings.fujitsuAlertThreshold,
+    withdrawnShares,
   )
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
   const nisa = buildNisaPlan(settings, latest?.nisaContributedPrincipal ?? 0, today)
-  const holdingPlan = buildHoldingPlan(holding, today)
+  const holdingPlan = buildHoldingPlan(holding, today, withdrawals)
   const humanCapital = buildHumanCapital(investments, careerEvents)
   const series = buildMonthlySeries(snapshots)
 

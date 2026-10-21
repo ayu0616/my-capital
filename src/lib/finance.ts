@@ -4,6 +4,7 @@ import type {
   CameraGear,
   CareerEvent,
   HoldingStockStatus,
+  HoldingWithdrawal,
   SelfInvestment,
 } from '../db/schema'
 import {
@@ -66,7 +67,9 @@ const safe = (value: number | null | undefined): number =>
 
 export function snapshotTotal(snapshot: AssetSnapshot): number {
   const fujitsuShares =
-    safe(snapshot.holdingStockShares) + safe(snapshot.fujitsuRomanStockShares)
+    safe(snapshot.holdingStockShares) +
+    safe(snapshot.withdrawnHoldingShares) +
+    safe(snapshot.fujitsuRomanStockShares)
   return (
     safe(snapshot.cashAmount) +
     safe(snapshot.nisaOrkanAmount) +
@@ -99,6 +102,7 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
     .map((snapshot) => {
       const fujitsu =
         (safe(snapshot.holdingStockShares) +
+          safe(snapshot.withdrawnHoldingShares) +
           safe(snapshot.fujitsuRomanStockShares)) *
         safe(snapshot.fujitsuCurrentPrice)
       const invested =
@@ -168,7 +172,7 @@ function buildPortfolio(params: {
   const slices: PortfolioSlice[] = [
     { key: 'orkan', label: 'オルカン', amount: amounts.orkan, ratio: ratioOf(amounts.orkan), color: ALLOCATION_COLORS.orkan },
     { key: 'sp500', label: 'S&P 500', amount: amounts.sp500, ratio: ratioOf(amounts.sp500), color: ALLOCATION_COLORS.sp500 },
-    { key: 'fujitsu', label: '富士通（持株会＋ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
+    { key: 'fujitsu', label: '富士通（持株会＋引出し済み＋ロマン枠）', amount: amounts.fujitsu, ratio: ratioOf(amounts.fujitsu), color: ALLOCATION_COLORS.fujitsu },
     { key: 'carryover', label: '持株会の繰越金', amount: amounts.carryover, ratio: ratioOf(amounts.carryover), color: ALLOCATION_COLORS.carryover },
     { key: 'cash', label: '現預金', amount: amounts.cash, ratio: ratioOf(amounts.cash), color: ALLOCATION_COLORS.cash },
     { key: 'gear', label: 'カメラ機材', amount: amounts.gear, ratio: ratioOf(amounts.gear), color: ALLOCATION_COLORS.gear },
@@ -198,6 +202,7 @@ export function buildCurrentPortfolio(
   holding: HoldingStockStatus,
   gearValue: number,
   threshold = 0.15,
+  withdrawnShares = 0,
 ): Portfolio {
   return buildPortfolio({
     cash: safe(latest?.cashAmount),
@@ -205,6 +210,7 @@ export function buildCurrentPortfolio(
     sp500: safe(latest?.nisaSp500Amount),
     fujitsuShares:
       safe(holding.currentAccumulatedShares) +
+      safe(withdrawnShares) +
       safe(latest?.fujitsuRomanStockShares),
     fujitsuPrice: safe(holding.latestStockPrice) || safe(latest?.fujitsuCurrentPrice),
     carryover: safe(holding.carryoverAmount),
@@ -222,7 +228,9 @@ export function buildSnapshotPortfolio(
     orkan: safe(snapshot.nisaOrkanAmount),
     sp500: safe(snapshot.nisaSp500Amount),
     fujitsuShares:
-      safe(snapshot.holdingStockShares) + safe(snapshot.fujitsuRomanStockShares),
+      safe(snapshot.holdingStockShares) +
+      safe(snapshot.withdrawnHoldingShares) +
+      safe(snapshot.fujitsuRomanStockShares),
     fujitsuPrice: safe(snapshot.fujitsuCurrentPrice),
     carryover: safe(snapshot.holdingCarryoverAmount),
     gear: safe(snapshot.gearResaleAmount),
@@ -304,6 +312,8 @@ function parseBirthDate(value: string, fallback: Date): Date {
 
 export interface HoldingPlan {
   currentShares: number
+  withdrawnShares: number
+  totalShares: number
   targetShares: number
   price: number
   monthlyContribution: number
@@ -316,11 +326,16 @@ export interface HoldingPlan {
   etaDate: Date | null
   etaLabel: string | null
   value: number
+  withdrawnValue: number
+  totalValue: number
   recordedAt: string
   averageAcquisitionPrice: number
   costBasis: number | null
   unrealizedGain: number | null
   unrealizedGainRatio: number | null
+  withdrawnCostBasis: number | null
+  withdrawnUnrealizedGain: number | null
+  withdrawnUnrealizedGainRatio: number | null
   carryoverAmount: number
   isComplete: boolean
   predictedShares: number
@@ -329,15 +344,21 @@ export interface HoldingPlan {
 export function buildHoldingPlan(
   holding: HoldingStockStatus,
   today = todayDateOnly(),
+  withdrawals: HoldingWithdrawal[] = [],
 ): HoldingPlan {
   const currentShares = Math.max(0, safe(holding.currentAccumulatedShares))
+  const withdrawnShares = withdrawals.reduce(
+    (sum, withdrawal) => sum + Math.max(0, safe(withdrawal.shares)),
+    0,
+  )
+  const totalShares = currentShares + withdrawnShares
   const targetShares = Math.max(1, safe(holding.targetShares) || 100)
   const price = Math.max(0, safe(holding.latestStockPrice))
   const incentiveRate = Math.max(0, safe(holding.companyIncentiveRate))
   const monthlyContribution = Math.max(0, safe(holding.monthlyContribution))
   const monthlyPurchaseAmount = monthlyContribution * (1 + incentiveRate)
   const monthlyShares = price > 0 ? monthlyPurchaseAmount / price : 0
-  const remainingShares = Math.max(0, targetShares - currentShares)
+  const remainingShares = Math.max(0, targetShares - totalShares)
   const monthsToTarget =
     remainingShares <= 0 ? 0 : monthlyShares > 0 ? remainingShares / monthlyShares : null
   const etaDate =
@@ -352,9 +373,28 @@ export function buildHoldingPlan(
     costBasis != null && costBasis > 0 && price > 0
       ? (price - averageAcquisitionPrice) / averageAcquisitionPrice
       : null
+  const withdrawnCostBasis =
+    withdrawnShares > 0
+      ? withdrawals.reduce((sum, withdrawal) => {
+          const costPrice =
+            safe(withdrawal.averageAcquisitionPrice) || averageAcquisitionPrice
+          return sum + Math.max(0, safe(withdrawal.shares)) * costPrice
+        }, 0)
+      : null
+  const withdrawnValue = withdrawnShares * price
+  const withdrawnUnrealizedGain =
+    withdrawnCostBasis != null && withdrawnCostBasis > 0 && price > 0
+      ? withdrawnValue - withdrawnCostBasis
+      : null
+  const withdrawnUnrealizedGainRatio =
+    withdrawnUnrealizedGain != null && withdrawnCostBasis
+      ? withdrawnUnrealizedGain / withdrawnCostBasis
+      : null
   const value = currentShares * price
   return {
     currentShares,
+    withdrawnShares,
+    totalShares,
     targetShares,
     price,
     monthlyContribution,
@@ -362,19 +402,24 @@ export function buildHoldingPlan(
     monthlyPurchaseAmount,
     monthlyShares,
     remainingShares,
-    progress: clamp(currentShares / targetShares, 0, 1),
+    progress: clamp(totalShares / targetShares, 0, 1),
     monthsToTarget,
     etaDate,
     etaLabel: etaDate && remainingShares > 0 ? formatMonthEta(etaDate) : null,
     value,
+    withdrawnValue,
+    totalValue: value + withdrawnValue,
     recordedAt: holding.recordedAt,
     averageAcquisitionPrice,
     costBasis,
     unrealizedGain,
     unrealizedGainRatio,
+    withdrawnCostBasis,
+    withdrawnUnrealizedGain,
+    withdrawnUnrealizedGainRatio,
     carryoverAmount,
     isComplete: remainingShares <= 0,
-    predictedShares: Math.min(targetShares, currentShares + monthlyShares),
+    predictedShares: Math.min(targetShares, totalShares + monthlyShares),
   }
 }
 

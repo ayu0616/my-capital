@@ -1,12 +1,18 @@
 import { asc, desc } from 'drizzle-orm'
 import { getDb } from '../db/client.server'
-import { DEFAULT_HOLDING, DEFAULT_SETTINGS } from '../db/defaults'
+import {
+  DEFAULT_ACCOUNTS,
+  DEFAULT_HOLDING,
+  DEFAULT_SETTINGS,
+} from '../db/defaults'
 import {
   appSettings,
   assetSnapshots,
   cameraGears,
   careerEvents,
+  financialAccounts,
   holdingStockStatus,
+  holdingWithdrawals,
   selfInvestments,
 } from '../db/schema'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
@@ -36,6 +42,17 @@ async function ensureBaseRows() {
       .values({ ...DEFAULT_HOLDING, updatedAt: now })
       .onConflictDoNothing()
   }
+
+  await db
+    .insert(financialAccounts)
+    .values(
+      DEFAULT_ACCOUNTS.map((account) => ({
+        ...account,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    )
+    .onConflictDoNothing()
 }
 
 export async function readSettings() {
@@ -60,25 +77,41 @@ export async function readHolding() {
   return row
 }
 
+export async function readHoldingWithdrawals() {
+  return getDb()
+    .select()
+    .from(holdingWithdrawals)
+    .orderBy(desc(holdingWithdrawals.withdrawnAt), desc(holdingWithdrawals.createdAt))
+}
+
 export async function fetchDashboardData() {
   await ensureBaseRows()
   const db = getDb()
-  const [settings, holding, snapshots, gears, investments, events] =
-    await Promise.all([
-      readSettings(),
-      readHolding(),
-      db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
-      db.select().from(cameraGears).orderBy(desc(cameraGears.purchasedAt)),
-      db
-        .select()
-        .from(selfInvestments)
-        .orderBy(desc(selfInvestments.completedAt)),
-      db.select().from(careerEvents).orderBy(desc(careerEvents.occurredAt)),
-    ])
+  const [
+    settings,
+    holding,
+    withdrawals,
+    snapshots,
+    gears,
+    investments,
+    events,
+  ] = await Promise.all([
+    readSettings(),
+    readHolding(),
+    readHoldingWithdrawals(),
+    db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
+    db.select().from(cameraGears).orderBy(desc(cameraGears.purchasedAt)),
+    db
+      .select()
+      .from(selfInvestments)
+      .orderBy(desc(selfInvestments.completedAt)),
+    db.select().from(careerEvents).orderBy(desc(careerEvents.occurredAt)),
+  ])
 
   return {
     settings,
     holding,
+    withdrawals,
     snapshots,
     gears,
     investments,
@@ -90,15 +123,17 @@ export async function fetchDashboardData() {
 export async function fetchAssetsData() {
   await ensureBaseRows()
   const db = getDb()
-  const [settings, holding, snapshots, gears] = await Promise.all([
+  const [settings, holding, withdrawals, snapshots, gears] = await Promise.all([
     readSettings(),
     readHolding(),
+    readHoldingWithdrawals(),
     db.select().from(assetSnapshots).orderBy(asc(assetSnapshots.yearMonth)),
     db.select().from(cameraGears),
   ])
   return {
     settings,
     holding,
+    withdrawals,
     snapshots,
     gears,
     today: toDateOnlyString(todayDateOnly()),
@@ -139,21 +174,36 @@ export async function fetchSelfInvestmentData() {
 export async function fetchSettingsData() {
   await ensureBaseRows()
   const db = getDb()
-  const [settings, holding, snapshotCount, gearCount, investmentCount] =
-    await Promise.all([
-      readSettings(),
-      readHolding(),
-      db.select().from(assetSnapshots),
-      db.select().from(cameraGears),
-      db.select().from(selfInvestments),
-    ])
+  const [
+    settings,
+    holding,
+    withdrawals,
+    accounts,
+    snapshotCount,
+    gearCount,
+    investmentCount,
+  ] = await Promise.all([
+    readSettings(),
+    readHolding(),
+    readHoldingWithdrawals(),
+    db
+      .select()
+      .from(financialAccounts)
+      .orderBy(asc(financialAccounts.sortOrder)),
+    db.select().from(assetSnapshots),
+    db.select().from(cameraGears),
+    db.select().from(selfInvestments),
+  ])
   return {
     settings,
     holding,
+    withdrawals,
+    accounts,
     counts: {
       snapshots: snapshotCount.length,
       gears: gearCount.length,
       investments: investmentCount.length,
+      withdrawals: withdrawals.length,
     },
   }
 }

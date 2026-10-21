@@ -55,7 +55,8 @@ export const Route = createFileRoute('/assets')({
 })
 
 function AssetsPage() {
-  const { settings, holding, snapshots, gears, today } = Route.useLoaderData()
+  const { settings, holding, withdrawals, snapshots, gears, today } =
+    Route.useLoaderData()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<AssetSnapshot | null>(null)
@@ -72,11 +73,16 @@ function AssetsPage() {
   )
   const series = buildMonthlySeries(snapshots)
   const gearSummary = buildGearSummary(gears)
+  const withdrawnShares = withdrawals.reduce(
+    (sum, withdrawal) => sum + withdrawal.shares,
+    0,
+  )
   const portfolio = buildCurrentPortfolio(
     latest,
     holding,
     gearSummary.resaleTotal,
     settings.fujitsuAlertThreshold,
+    withdrawnShares,
   )
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
@@ -149,7 +155,7 @@ function AssetsPage() {
           value={formatYen(portfolio.financialTotal)}
           icon={Landmark}
           tone="ink"
-          hint="現預金＋投資信託＋富士通＋繰越金"
+          hint="現預金＋投資信託＋富士通＋引出し済み＋繰越金"
         />
         <MetricCard
           label="NISA累計元本"
@@ -225,7 +231,8 @@ function AssetsPage() {
                       const total = snapshotTotal(snapshot)
                       const fujitsuShares =
                         snapshot.fujitsuRomanStockShares +
-                        snapshot.holdingStockShares
+                        snapshot.holdingStockShares +
+                        snapshot.withdrawnHoldingShares
                       return (
                         <tr
                           key={snapshot.id}
@@ -254,6 +261,11 @@ function AssetsPage() {
                           </td>
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
                             {fujitsuShares.toFixed(1)}株
+                            {snapshot.withdrawnHoldingShares > 0 ? (
+                              <span className="mt-0.5 block text-[0.52rem] text-muted/80">
+                                引出し {snapshot.withdrawnHoldingShares.toFixed(1)}株
+                              </span>
+                            ) : null}
                             {snapshot.holdingCarryoverAmount > 0 ? (
                               <span className="mt-0.5 block text-[0.52rem] text-muted/80">
                                 繰越 {formatYen(snapshot.holdingCarryoverAmount)}
@@ -319,6 +331,11 @@ function AssetsPage() {
                         <span className="rounded-full bg-canvas/70 px-2 py-0.5">
                           投資 {formatYen(snapshot.nisaOrkanAmount + snapshot.nisaSp500Amount)}
                         </span>
+                        {snapshot.withdrawnHoldingShares > 0 ? (
+                          <span className="rounded-full bg-canvas/70 px-2 py-0.5">
+                            引出し {snapshot.withdrawnHoldingShares.toFixed(1)}株
+                          </span>
+                        ) : null}
                         {snapshot.holdingCarryoverAmount > 0 ? (
                           <span className="rounded-full bg-canvas/70 px-2 py-0.5">
                             繰越 {formatYen(snapshot.holdingCarryoverAmount)}
@@ -363,6 +380,7 @@ function AssetsPage() {
         latest={latest}
         holding={holding}
         gearResaleTotal={gearSummary.resaleTotal}
+        withdrawnShares={withdrawnShares}
         defaultYearMonth={newMonth}
       />
 

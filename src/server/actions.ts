@@ -8,6 +8,7 @@ import {
   cameraGears,
   careerEvents,
   holdingStockStatus,
+  holdingWithdrawals,
   selfInvestments,
 } from '../db/schema'
 import { readHolding, readSettings } from './db.server'
@@ -71,6 +72,105 @@ export const updateHolding = createServerFn({ method: 'POST' })
     return { ok: true as const }
   })
 
+const withdrawalInput = z.object({
+  id: z.string().min(1).optional(),
+  withdrawnAt: dateString,
+  shares: z.number().min(0.0001).max(10_000_000),
+  averageAcquisitionPrice: z.number().min(0).max(10_000_000),
+  stockPrice: z.number().min(0).max(10_000_000),
+  destination: z.string().trim().min(1).max(80),
+  notes: optionalNotes,
+})
+
+export const saveHoldingWithdrawal = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => withdrawalInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const current = await readHolding()
+    const existing = data.id
+      ? (
+          await db
+            .select()
+            .from(holdingWithdrawals)
+            .where(eq(holdingWithdrawals.id, data.id))
+            .limit(1)
+        )[0]
+      : null
+
+    if (data.id && !existing) {
+      throw new Error('引出しの記録が見つかりませんでした')
+    }
+
+    const oldShares = existing?.shares ?? 0
+    const delta = data.shares - oldShares
+    const nextHoldingShares = current.currentAccumulatedShares - delta
+    if (nextHoldingShares < -0.0001) {
+      throw new Error('持株会の現在株数を超える引出しは記録できません')
+    }
+
+    const now = new Date().toISOString()
+    const values = {
+      withdrawnAt: data.withdrawnAt,
+      shares: data.shares,
+      averageAcquisitionPrice:
+        data.averageAcquisitionPrice || current.averageAcquisitionPrice,
+      stockPrice: data.stockPrice || current.latestStockPrice,
+      destination: data.destination,
+      notes: data.notes ?? null,
+      updatedAt: now,
+    }
+
+    if (existing) {
+      await db
+        .update(holdingWithdrawals)
+        .set(values)
+        .where(eq(holdingWithdrawals.id, existing.id))
+    } else {
+      await db.insert(holdingWithdrawals).values({
+        id: newId(),
+        ...values,
+        createdAt: now,
+      })
+    }
+
+    await db
+      .update(holdingStockStatus)
+      .set({
+        currentAccumulatedShares: Math.max(0, nextHoldingShares),
+        updatedAt: now,
+      })
+      .where(eq(holdingStockStatus.id, current.id))
+
+    return { ok: true as const }
+  })
+
+export const deleteHoldingWithdrawal = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const [existing] = await db
+      .select()
+      .from(holdingWithdrawals)
+      .where(eq(holdingWithdrawals.id, data.id))
+      .limit(1)
+    if (!existing) return { ok: true as const }
+
+    const current = await readHolding()
+    const now = new Date().toISOString()
+    await db
+      .update(holdingStockStatus)
+      .set({
+        currentAccumulatedShares:
+          current.currentAccumulatedShares + existing.shares,
+        updatedAt: now,
+      })
+      .where(eq(holdingStockStatus.id, current.id))
+    await db
+      .delete(holdingWithdrawals)
+      .where(eq(holdingWithdrawals.id, data.id))
+    return { ok: true as const }
+  })
+
 /* -------------------------------------------------------------------------- */
 /*  Asset snapshots                                                            */
 /* -------------------------------------------------------------------------- */
@@ -84,6 +184,7 @@ const snapshotInput = z.object({
   nisaContributedPrincipal: z.number().int().min(0).max(1_000_000_000_000),
   fujitsuRomanStockShares: z.number().min(0).max(10_000_000),
   holdingStockShares: z.number().min(0).max(10_000_000),
+  withdrawnHoldingShares: z.number().min(0).max(10_000_000),
   holdingAverageAcquisitionPrice: z.number().min(0).max(10_000_000),
   holdingCarryoverAmount: z.number().int().min(0).max(1_000_000_000),
   fujitsuCurrentPrice: z.number().min(0).max(10_000_000),
@@ -107,6 +208,7 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
           nisaContributedPrincipal: data.nisaContributedPrincipal,
           fujitsuRomanStockShares: data.fujitsuRomanStockShares,
           holdingStockShares: data.holdingStockShares,
+          withdrawnHoldingShares: data.withdrawnHoldingShares,
           holdingAverageAcquisitionPrice: data.holdingAverageAcquisitionPrice,
           holdingCarryoverAmount: data.holdingCarryoverAmount,
           fujitsuCurrentPrice: data.fujitsuCurrentPrice,
@@ -137,6 +239,7 @@ export const saveSnapshot = createServerFn({ method: 'POST' })
       nisaContributedPrincipal: data.nisaContributedPrincipal,
       fujitsuRomanStockShares: data.fujitsuRomanStockShares,
       holdingStockShares: data.holdingStockShares,
+      withdrawnHoldingShares: data.withdrawnHoldingShares,
       holdingAverageAcquisitionPrice: data.holdingAverageAcquisitionPrice,
       holdingCarryoverAmount: data.holdingCarryoverAmount,
       fujitsuCurrentPrice: data.fujitsuCurrentPrice,

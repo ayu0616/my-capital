@@ -112,7 +112,7 @@ export function PortfolioCard({
             </div>
 
             <p className="mt-auto border-t border-line/70 pt-3 text-[0.58rem] leading-relaxed text-muted">
-              富士通（持株会＋ロマン枠）比率{' '}
+              富士通（持株会＋引出し済み＋ロマン枠）比率{' '}
               <span className={cn('font-semibold', over ? 'text-danger' : 'text-ink')}>
                 {formatPercent(portfolio.fujitsuRatio)}
               </span>{' '}

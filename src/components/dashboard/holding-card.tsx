@@ -63,23 +63,61 @@ export function HoldingCard({
 
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[0.6rem] font-medium text-muted">保有株数</p>
+            <p className="text-[0.6rem] font-medium text-muted">
+              持株会＋引出し済み
+            </p>
             <p className="mt-1 flex items-baseline gap-1.5">
               <span className="font-display text-[clamp(2.1rem,4.5vw,2.8rem)] font-semibold leading-none text-ink tabular">
-                {formatNumber(plan.currentShares, 1)}
+                {formatNumber(plan.totalShares, 1)}
               </span>
               <span className="text-[0.8rem] font-medium text-muted">
                 / {formatShares(plan.targetShares)}株
               </span>
             </p>
+            <p className="mt-1.5 text-[0.56rem] text-muted">
+              持株会 {formatNumber(plan.currentShares, 1)}株
+              {plan.withdrawnShares > 0
+                ? ` ・ 引出し済み ${formatNumber(plan.withdrawnShares, 1)}株`
+                : ''}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-[0.6rem] font-medium text-muted">株式の評価額</p>
             <p className="mt-1 text-[0.95rem] font-bold text-ink tabular">
-              {formatYen(plan.value)}
+              {formatYen(plan.totalValue)}
             </p>
+            {plan.withdrawnValue > 0 ? (
+              <p className="mt-0.5 text-[0.5rem] text-muted tabular">
+                引出し分 {formatYen(plan.withdrawnValue)}
+              </p>
+            ) : null}
           </div>
         </div>
+
+        {plan.withdrawnShares > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand/10 bg-brand-soft/45 px-3 py-2.5">
+            <div>
+              <p className="text-[0.52rem] text-brand-ink/60">
+                SMBC日興証券へ引出し済み
+              </p>
+              <p className="mt-0.5 text-[0.72rem] font-bold text-brand-ink tabular">
+                {formatNumber(plan.withdrawnShares, 1)}株
+                {plan.withdrawnUnrealizedGain != null ? (
+                  <span className="ml-2 text-[0.6rem] font-semibold">
+                    評価損益{' '}
+                    {formatYen(plan.withdrawnUnrealizedGain, { sign: true })}
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <p className="text-[0.56rem] text-muted">
+              取得原価{' '}
+              {plan.withdrawnCostBasis == null
+                ? '—'
+                : formatYen(plan.withdrawnCostBasis)}
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-line/80 bg-line/70">
           <div className="bg-canvas/35 px-2.5 py-2.5">
@@ -178,7 +216,7 @@ export function HoldingCard({
             to="/settings"
             className="font-semibold text-brand underline decoration-brand/25 underline-offset-2 hover:text-brand-strong"
           >
-            持株会の記録を更新
+            持株会・引出しを更新
           </Link>
         </div>
       </CardContent>
