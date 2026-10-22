@@ -16,7 +16,11 @@ import {
   selfInvestments,
   stockGoals,
 } from '../db/schema'
-import { readHolding, readSettings } from './db.server'
+import {
+  readHolding,
+  readSettings,
+  syncFujitsuStockPrice,
+} from './db.server'
 import { removeImage } from './storage.server'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
 
@@ -240,6 +244,12 @@ export const deleteHoldingWithdrawal = createServerFn({ method: 'POST' })
       .delete(holdingWithdrawals)
       .where(eq(holdingWithdrawals.id, data.id))
     return { ok: true as const }
+  })
+
+export const refreshHoldingStockPrice = createServerFn({ method: 'POST' })
+  .handler(async () => {
+    const quote = await syncFujitsuStockPrice({ force: true })
+    return { ok: true as const, ...quote }
   })
 
 /* -------------------------------------------------------------------------- */

@@ -8,6 +8,7 @@ import {
   Landmark,
   Loader2,
   LockKeyhole,
+  RefreshCw,
   Save,
   ShieldCheck,
   Sparkles,
@@ -45,7 +46,11 @@ import {
   todayDateOnly,
 } from '../lib/format'
 import { parseNumberInput, parseYenInput } from '../lib/utils'
-import { updateHolding, updateSettings } from '../server/actions'
+import {
+  refreshHoldingStockPrice,
+  updateHolding,
+  updateSettings,
+} from '../server/actions'
 import { logout } from '../server/auth'
 import { getSettingsData } from '../server/queries'
 
@@ -350,6 +355,7 @@ function HoldingForm({
   const [price, setPrice] = useState(String(holding.latestStockPrice))
   const [targetShares, setTargetShares] = useState(String(holding.targetShares))
   const [pending, setPending] = useState(false)
+  const [fetchingPrice, setFetchingPrice] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const contribution = parseYenInput(monthlyContribution)
@@ -374,6 +380,24 @@ function HoldingForm({
   const remaining = Math.max(0, target - currentShares)
   const months = monthlyShares > 0 ? remaining / monthlyShares : null
   const progress = Math.min(1, currentShares / target)
+
+  async function fetchPrice() {
+    setFetchingPrice(true)
+    try {
+      const result = await refreshHoldingStockPrice()
+      setPrice(String(result.price))
+      toast.success(
+        `富士通の株価を取得しました（${formatYen(result.price)}）`,
+      )
+      onSaved()
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : '株価の取得に失敗しました'
+      toast.error(message)
+    } finally {
+      setFetchingPrice(false)
+    }
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
@@ -534,13 +558,30 @@ function HoldingForm({
               <Field
                 label="現在の株価"
                 htmlFor="hold-price"
-                hint="評価額と到達時期の計算に使います。"
+                hint="Google Financeから1日1回自動取得します。評価額と到達時期の計算に使います。"
               >
-                <MoneyInput
-                  id="hold-price"
-                  value={price}
-                  onChange={(event) => setPrice(event.target.value)}
-                />
+                <div className="space-y-2">
+                  <MoneyInput
+                    id="hold-price"
+                    value={price}
+                    onChange={(event) => setPrice(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={fetchPrice}
+                    disabled={fetchingPrice}
+                  >
+                    {fetchingPrice ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3.5" />
+                    )}
+                    {fetchingPrice ? '取得中…' : '株価を再取得'}
+                  </Button>
+                </div>
               </Field>
             </FieldGrid>
           </section>
