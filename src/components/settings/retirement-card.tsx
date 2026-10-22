@@ -358,7 +358,7 @@ export function RetirementCard({
         onOpenChange={setOpen}
         size="lg"
         title="確定拠出年金を編集"
-        description="JIS&Tの評価額・累計拠出額・商品配分を記録します。保存すると、最新の月次記録の確定拠出年金も同じ評価額に更新されます。"
+        description="JIS&Tの評価額・累計拠出額・商品配分を記録します。"
         footer={
           <>
             <Button variant="outline" onClick={() => setOpen(false)}>

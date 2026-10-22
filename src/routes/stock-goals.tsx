@@ -87,7 +87,7 @@ function StockGoalsPage() {
       <PageHeader
         kicker="Shareholder benefits"
         title="優待株"
-        description="100株到達などの株主優待の目標を管理します。1株単位の銘柄にも対応し、期限から必要な購入ペースを計算します。"
+
         actions={
           <Button onClick={openNew}>
             <Plus className="size-3.5" />

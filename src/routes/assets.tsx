@@ -102,7 +102,6 @@ function AssetsPage() {
       <PageHeader
         kicker="Portfolio ledger"
         title="資産の記録"
-        description="毎月の資産額を記録し、純資産とNISAの進捗を確認します。"
         actions={
           <>
             <Button variant="outline" onClick={() => setAllOpen(true)}>
@@ -172,9 +171,6 @@ function AssetsPage() {
         <CardHeader className="items-center">
           <div>
             <CardTitle>資産項目の記録</CardTitle>
-            <p className="mt-1 text-[0.68rem] text-muted">
-              項目ごとに評価日と値を記録します。最新値は繰り越して月次推移を自動集計します。
-            </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setAllOpen(true)}>
             <Plus className="size-3.5" />
@@ -241,7 +237,7 @@ function AssetsPage() {
           <div>
             <CardTitle>月次推移（自動集計）</CardTitle>
             <p className="mt-1 text-[0.68rem] text-muted">
-              項目ごとの記録から {snapshots.length} ヶ月分を集計
+              {snapshots.length} ヶ月分
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setAllOpen(true)}>
@@ -410,7 +406,6 @@ function AssetsPage() {
         items={ASSET_ITEMS}
         entries={assetEntries}
         title="資産をまとめて更新"
-        description="記録する日付と、更新したい項目の値を入力します。空欄の項目は更新されません。"
       />
       {activeItem ? (
         <AssetEntryDialog
@@ -422,7 +417,6 @@ function AssetsPage() {
           items={[activeItem]}
           entries={assetEntries}
           title={`${activeItem.label} を更新`}
-          description="評価日と値を入力します。履歴から読み込んで修正することもできます。"
         />
       ) : null}
     </>

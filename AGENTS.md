@@ -44,6 +44,7 @@
 - Body copy, labels, errors, toasts, empty states, and metadata are Japanese; existing English kickers/brand names (e.g. Overview, AUTHENTICATION, PRIVATE LEDGER) are intentional. Describe data and actions plainly; avoid metaphors, slogans, rhetorical questions, and lifestyle copy.
 - Keep `純資産（機材込み）`, `警告ライン`, `買取目安`, `自己投資`. Do not reintroduce `真の純資産`, `安全弁`, `リセール`, or `人的資本`.
 - NISA copy uses the configured target, never a hardcoded ¥18M. An empty portfolio shows `データなし`, not `上限内`.
+- 不要なセカンダリラベルや説明を避ける。レイアウトに説明させる。
 - UI primitives are hand-built in `src/components/ui`; there is no shadcn CLI/Radix layer to regenerate. Tailwind v4 theme tokens live in `src/styles.css`.
 - Pair `MoneyInput` with `parseYenInput` for yen fields; it strips separators and rounds to yen.
 - Wrap Recharts in `ClientChart` (`src/components/charts/client-chart.tsx`); it waits for hydration so SSR does not measure a zero-width container.

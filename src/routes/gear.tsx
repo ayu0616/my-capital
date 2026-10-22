@@ -84,7 +84,6 @@ function GearPage() {
       <PageHeader
         kicker="Gear ledger"
         title="機材台帳"
-        description="カメラ機材の購入額と現在の買取目安を記録し、純資産に反映します。"
         actions={
           <Button onClick={openNew}>
             <Plus className="size-3.5" />

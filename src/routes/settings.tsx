@@ -73,7 +73,6 @@ function SettingsPage() {
       <PageHeader
         kicker="Studio settings"
         title="設定"
-        description="目標額、目標年齢、株価など、計算に使う値を変更します。"
         actions={
           <Badge variant="outline" className="h-7 px-3">
             <LockKeyhole className="size-3" />

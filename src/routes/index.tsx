@@ -83,7 +83,6 @@ function Dashboard() {
       <PageHeader
         kicker={`Overview${latest ? ` · ${formatYearMonth(latest.yearMonth)}` : ''}`}
         title={<span>{settings.nickname}さんの資産状況</span>}
-        description="金融資産・持株会・機材・自己投資の現在の状況をまとめています。"
         actions={
           <>
             <Link to="/assets" className={buttonVariants({ size: 'md' })}>

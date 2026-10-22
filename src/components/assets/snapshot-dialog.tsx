@@ -37,7 +37,7 @@ export function AssetEntryDialog({
   entries,
   defaultDate,
   title = '資産を更新',
-  description = '記録する日付と、更新したい項目の値を入力します。変更していない項目は空のままでも保存できます。',
+  description,
 }: AssetEntryDialogProps) {
   const router = useRouter()
   const single = items.length === 1

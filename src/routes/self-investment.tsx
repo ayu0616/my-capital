@@ -113,7 +113,6 @@ function SelfInvestmentPage() {
       <PageHeader
         kicker="Self-investment"
         title="自己投資"
-        description="資格・講座・書籍の費用と、昇格・昇給による年収の増加を記録します。"
         actions={
           <>
             <Button variant="outline" onClick={() => openCareer(null)}>

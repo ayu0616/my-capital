@@ -8,33 +8,35 @@
  * then replace database_id below with the value printed by wrangler.
  */
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "my-capital",
-  "compatibility_date": "2026-10-19",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
-  "observability": {
-    "enabled": true
-  },
-  "upload_source_maps": true,
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "my-capital-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "drizzle"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "GEAR_IMAGES",
-      "bucket_name": "my-capital-gear"
-    }
-  ]
-  /**
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "my-capital",
+	"compatibility_date": "2026-10-19",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "@tanstack/react-start/server-entry",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "my-capital-db",
+			"migrations_dir": "drizzle",
+			"database_id": "15ab8047-1d13-4f31-b61a-028cecc5820a"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "GEAR_IMAGES",
+			"bucket_name": "my-capital-gear"
+		}
+	]
+	/**
    * Optional: set an access passcode for the deployed app.
    *   npx wrangler secret put APP_PASSCODE
    * When unset, the app runs without a login screen (single-user / local mode).
    */
-  // "vars": { "APP_PASSCODE": "" }
+	// "vars": { "APP_PASSCODE": "" }
 }
