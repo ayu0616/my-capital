@@ -1,9 +1,19 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { KeyRound, Loader2, LockKeyhole } from 'lucide-react'
-import { useState } from 'react'
+import {
+  browserSupportsWebAuthn,
+  startAuthentication,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from '@simplewebauthn/browser'
+import { Fingerprint, KeyRound, Loader2, LockKeyhole } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/form'
-import { getAuthState, login } from '../server/auth'
+import {
+  getAuthState,
+  getPasskeyAuthenticationOptions,
+  login,
+  loginWithPasskey,
+} from '../server/auth'
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
@@ -17,7 +27,7 @@ export const Route = createFileRoute('/login')({
     if (!auth.required || auth.authenticated) {
       throw redirect({ to: '/' })
     }
-    return null
+    return auth
   },
   component: LoginPage,
 })
@@ -29,9 +39,18 @@ function safeRedirect(value: string | undefined) {
 
 function LoginPage() {
   const { redirect } = Route.useSearch()
+  const auth = Route.useLoaderData()
   const [passcode, setPasscode] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [passkeySupported, setPasskeySupported] = useState(true)
+
+  useEffect(() => {
+    setPasskeySupported(browserSupportsWebAuthn())
+  }, [])
+
+  const hasPasskey = auth.passkeyCount > 0
+  const canUsePasscode = auth.passcodeEnabled
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -48,6 +67,38 @@ function LoginPage() {
       window.location.assign(safeRedirect(redirect))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'ログインに失敗しました')
+      setPending(false)
+    }
+  }
+
+  async function handlePasskeyLogin() {
+    setPending(true)
+    setError(null)
+    try {
+      const options = await getPasskeyAuthenticationOptions()
+      if (!options.ok) {
+        setError(options.error)
+        return
+      }
+      const response = await startAuthentication({
+        optionsJSON:
+          options.options as unknown as PublicKeyCredentialRequestOptionsJSON,
+      })
+      const result = await loginWithPasskey({ data: { response } })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      window.location.assign(safeRedirect(redirect))
+    } catch (cause) {
+      setError(
+        cause instanceof Error && cause.name === 'NotAllowedError'
+          ? 'パスキーの確認がキャンセルされました'
+          : cause instanceof Error
+            ? cause.message
+            : 'ログインに失敗しました',
+      )
+    } finally {
       setPending(false)
     }
   }
@@ -125,62 +176,110 @@ function LoginPage() {
             ログイン
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            パスコードを入力してください。
+            {canUsePasscode && hasPasskey
+              ? 'パスコードまたはパスキーでログインできます。'
+              : hasPasskey
+                ? 'パスキーでログインしてください。'
+                : 'パスコードを入力してください。'}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <label
-              htmlFor="passcode"
-              className="block text-[0.66rem] font-semibold tracking-wide text-ink"
-            >
-              パスコード
-            </label>
-            <div className="relative">
-              <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
-              <Input
-                id="passcode"
-                type="password"
-                autoFocus
-                autoComplete="current-password"
-                value={passcode}
-                onChange={(event) => setPasscode(event.target.value)}
-                placeholder="••••••••"
-                className="h-12 pl-10"
-                required
-              />
-            </div>
-            {error ? (
-              <p className="rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-[0.72rem] text-danger">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="submit"
-              size="lg"
-              className="h-12 w-full"
-              disabled={pending || !passcode.trim()}
-            >
-              {pending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  確認中…
-                </>
+          {hasPasskey ? (
+            <div className="mt-8 space-y-4">
+              {passkeySupported ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-12 w-full"
+                  onClick={handlePasskeyLogin}
+                  disabled={pending}
+                >
+                  {pending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      確認中…
+                    </>
+                  ) : (
+                    <>
+                      <Fingerprint className="size-4" />
+                      パスキーでログイン
+                    </>
+                  )}
+                </Button>
               ) : (
-                'ログイン'
+                <p className="rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-[0.72rem] text-danger">
+                  このブラウザはパスキーに対応していません。
+                </p>
               )}
-            </Button>
-          </form>
+            </div>
+          ) : null}
+
+          {canUsePasscode ? (
+            <form
+              onSubmit={handleSubmit}
+              className={hasPasskey ? 'mt-6 space-y-4' : 'mt-8 space-y-4'}
+            >
+              {hasPasskey ? (
+                <div className="flex items-center gap-3 text-[0.58rem] font-semibold tracking-wide text-muted">
+                  <span className="h-px flex-1 bg-line" />
+                  または
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+              ) : null}
+              <label
+                htmlFor="passcode"
+                className="block text-[0.66rem] font-semibold tracking-wide text-ink"
+              >
+                パスコード
+              </label>
+              <div className="relative">
+                <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+                <Input
+                  id="passcode"
+                  type="password"
+                  autoFocus={!hasPasskey}
+                  autoComplete="current-password"
+                  value={passcode}
+                  onChange={(event) => setPasscode(event.target.value)}
+                  placeholder="••••••••"
+                  className="h-12 pl-10"
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
+                size="lg"
+                variant={hasPasskey ? 'outline' : 'default'}
+                className="h-12 w-full"
+                disabled={pending || !passcode.trim()}
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    確認中…
+                  </>
+                ) : (
+                  'パスコードでログイン'
+                )}
+              </Button>
+            </form>
+          ) : null}
+
+          {error ? (
+            <p className="mt-4 rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-[0.72rem] text-danger">
+              {error}
+            </p>
+          ) : null}
 
           <div className="mt-8 flex items-start gap-2 rounded-xl border border-line bg-surface/70 px-3.5 py-3">
             <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-muted" />
             <p className="text-[0.62rem] leading-relaxed text-muted">
               セッションは30日間、この端末にだけ保持されます。
-              パスコードはサーバー側で管理され、画面には保存されません。
+              パスコードとパスキーはサーバー側で管理され、画面には保存されません。
             </p>
           </div>
 
           <p className="mt-8 text-[0.56rem] leading-relaxed text-muted/70">
-            パスコードがわからない場合は、この台帳の管理者に確認してください。
+            ログインできない場合は、この台帳の管理者に確認してください。
           </p>
         </div>
       </main>

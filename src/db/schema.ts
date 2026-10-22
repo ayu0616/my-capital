@@ -32,6 +32,54 @@ export const appSettings = sqliteTable('app_settings', {
 })
 
 /* -------------------------------------------------------------------------- */
+/*  Authentication                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * パスキー（WebAuthn）の資格情報。単一ユーザーなので user_id は持たない。
+ * credential_id と公開鍵は base64url 文字列で保存する。
+ */
+export const authPasskeys = sqliteTable(
+  'auth_passkeys',
+  {
+    id: text('id').primaryKey(),
+    credentialId: text('credential_id').notNull().unique(),
+    publicKey: text('public_key').notNull(),
+    counter: integer('counter').notNull().default(0),
+    transports: text('transports').notNull().default(''), // カンマ区切り
+    label: text('label').notNull().default(''),
+    createdAt: text('created_at').notNull(),
+    lastUsedAt: text('last_used_at'),
+  },
+  (table) => [index('auth_passkeys_created_idx').on(table.createdAt)],
+)
+
+/**
+ * セッション署名に使うサーバー側の秘密。
+ * APP_PASSCODE を使わないパスキーのみの運用でも、推測できない秘密を保つ。
+ */
+export const authConfig = sqliteTable('auth_config', {
+  id: text('id').primaryKey(), // fixed: 'default'
+  sessionSecret: text('session_secret').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+/**
+ * WebAuthn のチャレンジ。検証時に一度だけ消費する。
+ */
+export const authChallenges = sqliteTable(
+  'auth_challenges',
+  {
+    challenge: text('challenge').primaryKey(),
+    kind: text('kind').notNull(), // 'registration' | 'authentication'
+    expiresAt: text('expires_at').notNull(), // ISO 8601
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [index('auth_challenges_expires_idx').on(table.expiresAt)],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Holding association (Fujitsu / employee stock purchase plan)              */
 /* -------------------------------------------------------------------------- */
 
@@ -322,6 +370,8 @@ export const careerEvents = sqliteTable('career_events', {
 /* -------------------------------------------------------------------------- */
 
 export type AppSettings = typeof appSettings.$inferSelect
+export type AuthPasskey = typeof authPasskeys.$inferSelect
+export type AuthChallenge = typeof authChallenges.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
 export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
 export type StockGoal = typeof stockGoals.$inferSelect

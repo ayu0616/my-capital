@@ -25,7 +25,7 @@ export const Route = createFileRoute('/api/images/$')({
         headers.set('etag', object.httpEtag)
         headers.set(
           'cache-control',
-          isAuthRequired()
+          (await isAuthRequired())
             ? 'private, max-age=3600'
             : 'public, max-age=31536000, immutable',
         )

@@ -32,9 +32,10 @@
 ## Cloudflare and auth
 
 - Bindings: D1 `DB` (`my-capital-db`), R2 `GEAR_IMAGES` (`my-capital-gear`). Read them with `import { env } from 'cloudflare:workers'`, not `process.env`.
-- `APP_PASSCODE` is optional. When set, all pages except `/login`, plus the image/upload APIs, require the session cookie; when unset, the app is open and `/login` redirects to `/`.
+- `APP_PASSCODE` is optional. When set, all pages except `/login`, plus the image/upload APIs, require the session cookie. Registered passkeys also require login even when `APP_PASSCODE` is unset. With neither configured, the app is open and `/login` redirects to `/`.
+- Passkeys are WebAuthn credentials stored in `auth_passkeys`; challenges live in `auth_challenges`, and the session signing secret in `auth_config`. Auth server functions are in `src/server/auth.ts` with crypto/WebAuthn work in `auth.server.ts`. `isAuthRequired()` and `isAuthenticated()` are async and may query D1.
 - The root auth guard protects pages, not API routes. New API routes must check `isAuthenticated()` themselves; see the image/upload routes.
-- Local secrets go in `.dev.vars` (copy `.dev.vars.example`). It is read at startup, so restart `npm run dev` after changing `APP_PASSCODE`; unset it (or remove `.dev.vars`) to return to open mode.
+- Local secrets go in `.dev.vars` (copy `.dev.vars.example`). It is read at startup, so restart `npm run dev` after changing `APP_PASSCODE`; unset it (or remove `.dev.vars`) to return to open mode when no passkeys are registered.
 - Secrets are not in `wrangler types`; declare them in `src/env.d.ts` (see `APP_PASSCODE`).
 - Gear uploads accept JPEG/PNG/WebP up to 8 MB and store keys under `gear/YYYY-MM-DD/`; the image route only serves `gear/` keys.
 - `wrangler.jsonc` still has the all-zero `database_id`; local dev works, but remote commands/deploy need the real ID. First deploy: `npx wrangler d1 create my-capital-db`, paste the printed ID, `npx wrangler r2 bucket create my-capital-gear`, `npm run db:migrate:remote`, optionally `npx wrangler secret put APP_PASSCODE`, then `npm run deploy`.

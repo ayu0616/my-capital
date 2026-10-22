@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, lt, sql } from 'drizzle-orm'
 import { getDb } from '../db/client.server'
 import {
   DEFAULT_ACCOUNTS,
@@ -9,6 +9,9 @@ import {
 import {
   appSettings,
   assetEntries,
+  authChallenges,
+  authConfig,
+  authPasskeys,
   cameraGears,
   careerEvents,
   financialAccounts,
@@ -136,6 +139,124 @@ export async function readRetirementAllocations() {
     .select()
     .from(retirementAllocations)
     .orderBy(asc(retirementAllocations.sortOrder))
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Authentication                                                            */
+/* -------------------------------------------------------------------------- */
+
+export async function readPasskeys() {
+  return getDb()
+    .select()
+    .from(authPasskeys)
+    .orderBy(desc(authPasskeys.createdAt))
+}
+
+export async function readPasskeySummaries() {
+  return getDb()
+    .select({
+      id: authPasskeys.id,
+      label: authPasskeys.label,
+      createdAt: authPasskeys.createdAt,
+      lastUsedAt: authPasskeys.lastUsedAt,
+    })
+    .from(authPasskeys)
+    .orderBy(desc(authPasskeys.createdAt))
+}
+
+export async function readPasskeyByCredentialId(credentialId: string) {
+  const [row] = await getDb()
+    .select()
+    .from(authPasskeys)
+    .where(eq(authPasskeys.credentialId, credentialId))
+    .limit(1)
+  return row ?? null
+}
+
+export async function countPasskeys() {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)` })
+    .from(authPasskeys)
+  return Number(row?.count ?? 0)
+}
+
+export async function insertPasskey(input: {
+  id: string
+  credentialId: string
+  publicKey: string
+  counter: number
+  transports: string
+  label: string
+  createdAt: string
+}) {
+  await getDb().insert(authPasskeys).values(input)
+}
+
+export async function updatePasskeyUsage(id: string, counter: number) {
+  await getDb()
+    .update(authPasskeys)
+    .set({ counter, lastUsedAt: new Date().toISOString() })
+    .where(eq(authPasskeys.id, id))
+}
+
+export async function deletePasskey(id: string) {
+  await getDb().delete(authPasskeys).where(eq(authPasskeys.id, id))
+}
+
+export async function readAuthSessionSecret() {
+  const [row] = await getDb()
+    .select({ sessionSecret: authConfig.sessionSecret })
+    .from(authConfig)
+    .limit(1)
+  return row?.sessionSecret ?? null
+}
+
+export async function createAuthSessionSecret(secret: string) {
+  const now = new Date().toISOString()
+  const db = getDb()
+  await db
+    .insert(authConfig)
+    .values({ id: 'default', sessionSecret: secret, createdAt: now, updatedAt: now })
+    .onConflictDoNothing()
+  const [row] = await db
+    .select({ sessionSecret: authConfig.sessionSecret })
+    .from(authConfig)
+    .limit(1)
+  return row?.sessionSecret ?? secret
+}
+
+export async function saveAuthChallenge(
+  challenge: string,
+  kind: 'registration' | 'authentication',
+  ttlSeconds = 300,
+) {
+  const db = getDb()
+  const now = new Date()
+  await db
+    .delete(authChallenges)
+    .where(lt(authChallenges.expiresAt, now.toISOString()))
+  await db.insert(authChallenges).values({
+    challenge,
+    kind,
+    expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
+    createdAt: now.toISOString(),
+  })
+}
+
+export async function consumeAuthChallenge(
+  challenge: string,
+  kind: 'registration' | 'authentication',
+) {
+  const db = getDb()
+  const [row] = await db
+    .select()
+    .from(authChallenges)
+    .where(eq(authChallenges.challenge, challenge))
+    .limit(1)
+  if (!row) return null
+  await db.delete(authChallenges).where(eq(authChallenges.challenge, challenge))
+  if (row.kind !== kind || row.expiresAt < new Date().toISOString()) return null
+  return row
 }
 
 export async function fetchDashboardData() {
@@ -296,6 +417,7 @@ export async function fetchSettingsData() {
     stockGoalCount,
     retirement,
     retirementAllocationRows,
+    passkeys,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -311,6 +433,7 @@ export async function fetchSettingsData() {
     db.select().from(stockGoals),
     readRetirementAccount(),
     readRetirementAllocations(),
+    readPasskeySummaries(),
   ])
   const snapshotCount = buildAssetSnapshots(entries, withdrawals)
   return {
@@ -320,6 +443,7 @@ export async function fetchSettingsData() {
     accounts,
     retirement,
     retirementAllocations: retirementAllocationRows,
+    passkeys,
     counts: {
       snapshots: snapshotCount.length,
       gears: gearCount.length,
