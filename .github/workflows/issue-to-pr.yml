@@ -42,12 +42,12 @@ jobs:
           opencode run --auto --model "$OPENCODE_MODEL" \
             "このリポジトリで GitHub Issue #${{ github.event.issue.number }} を実装してください。
 
-タイトル: ${{ github.event.issue.title }}
+            タイトル: ${{ github.event.issue.title }}
 
-本文:
-${{ github.event.issue.body }}
+            本文:
+            ${{ github.event.issue.body }}
 
-AGENTS.md と README.md を読み、既存の規約に従ってください。変更後は npm run typecheck と npm run build を実行して確認してください。"
+            AGENTS.md と README.md を読み、既存の規約に従ってください。変更後は npm run typecheck と npm run build を実行して確認してください。"
 
       - name: Commit changes
         run: |

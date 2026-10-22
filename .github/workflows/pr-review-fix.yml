@@ -61,9 +61,9 @@ jobs:
           opencode run --auto --model "$OPENCODE_MODEL" \
             "この PR のレビューコメントに対応して修正してください。
 
-$(cat feedback.txt)
+          $(cat feedback.txt)
 
-AGENTS.md の規約に従い、修正後は npm run typecheck と npm run build を実行してください。"
+            AGENTS.md の規約に従い、修正後は npm run typecheck と npm run build を実行してください。"
 
       - name: Commit and push
         run: |
