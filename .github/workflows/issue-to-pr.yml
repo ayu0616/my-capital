@@ -1,0 +1,72 @@
+name: Issue to PR (OpenCode)
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  implement:
+    if: contains(github.event.label.name, 'auto-implement')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup OpenCode
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Configure git
+        run: |
+          git config user.name "opencode-bot"
+          git config user.email "opencode-bot@users.noreply.github.com"
+
+      - name: Create branch
+        id: branch
+        run: |
+          BRANCH="auto/issue-${{ github.event.issue.number }}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Implement with OpenCode
+        env:
+          OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/big-pickle' }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          opencode run --auto --model "$OPENCODE_MODEL" \
+            "このリポジトリで GitHub Issue #${{ github.event.issue.number }} を実装してください。
+
+タイトル: ${{ github.event.issue.title }}
+
+本文:
+${{ github.event.issue.body }}
+
+AGENTS.md と README.md を読み、既存の規約に従ってください。変更後は npm run typecheck と npm run build を実行して確認してください。"
+
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git add -A
+          git commit -m "feat: implement issue #${{ github.event.issue.number }}"
+
+      - name: Push branch
+        run: git push origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "feat: ${{ github.event.issue.title }}" \
+            --body "Closes #${{ github.event.issue.number }}" \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --base "${{ github.event.repository.default_branch }}"

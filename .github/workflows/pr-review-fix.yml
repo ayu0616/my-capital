@@ -1,0 +1,76 @@
+name: PR Review Fix (OpenCode)
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix:
+    if: >
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'changes_requested') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/opencode fix'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve PR branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
+          HEAD_REF="$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head=$HEAD_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head }}
+          fetch-depth: 0
+
+      - name: Setup OpenCode
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Configure git
+        run: |
+          git config user.name "opencode-bot"
+          git config user.email "opencode-bot@users.noreply.github.com"
+
+      - name: Collect review feedback
+        id: feedback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.pr.outputs.number }}"
+          gh pr view "$PR_NUMBER" --json reviews,comments --jq '
+            .reviews[] | "Reviewer: \(.author.login)\nState: \(.state)\n\(.body)\n",
+            .comments[] | "Comment: \(.body)\n"
+          ' > feedback.txt
+          cat feedback.txt
+
+      - name: Apply fixes with OpenCode
+        env:
+          OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/big-pickle' }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          opencode run --auto --model "$OPENCODE_MODEL" \
+            "この PR のレビューコメントに対応して修正してください。
+
+$(cat feedback.txt)
+
+AGENTS.md の規約に従い、修正後は npm run typecheck と npm run build を実行してください。"
+
+      - name: Commit and push
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git add -A
+          git commit -m "fix: address review comments"
+          git push
