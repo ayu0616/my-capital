@@ -27,6 +27,7 @@ import {
 import { Badge, Field, FieldGrid, Input, MoneyInput } from '../components/ui/form'
 import { PageHeader } from '../components/ui/page'
 import { WithdrawalCard } from '../components/holding/withdrawal-card'
+import { PasskeyCard } from '../components/settings/passkey-card'
 import { RetirementCard } from '../components/settings/retirement-card'
 import type {
   AppSettings,
@@ -64,6 +65,8 @@ function SettingsPage() {
     retirementAllocations,
     counts,
     authRequired,
+    passcodeEnabled,
+    passkeys,
   } = Route.useLoaderData()
   const router = useRouter()
 
@@ -109,6 +112,12 @@ function SettingsPage() {
             await logout()
             window.location.assign('/login')
           }}
+          className="lg:col-span-5"
+        />
+        <PasskeyCard
+          passkeys={passkeys}
+          passcodeEnabled={passcodeEnabled}
+          onChanged={() => router.invalidate()}
           className="lg:col-span-5"
         />
       </div>
@@ -811,12 +820,12 @@ function AboutCard({
         <div className="mt-5 rounded-xl border border-line/80 bg-canvas/35 p-3.5">
           <p className="flex items-center gap-1.5 text-[0.6rem] font-semibold text-ink">
             <ShieldCheck className="size-3.5 text-positive" />
-            {authRequired ? 'パスコード保護が有効です' : 'パスコード保護は未設定です'}
+            {authRequired ? 'ログイン保護が有効です' : 'ログイン保護は未設定です'}
           </p>
           <p className="mt-1.5 text-[0.56rem] leading-relaxed text-muted">
             {authRequired
               ? 'セッションは30日間有効です。共用端末では、使い終わったらログアウトしてください。'
-              : '個人用のダッシュボードです。公開する場合は APP_PASSCODE を設定すると、ログイン画面が有効になります。'}
+              : '個人用のダッシュボードです。公開する場合は APP_PASSCODE を設定するか、パスキーを追加するとログイン画面が有効になります。'}
           </p>
           {authRequired ? (
             <Button

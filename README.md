@@ -47,9 +47,9 @@ npm run dev          # http://localhost:3000
 - 富士通（6702）はロマン枠として分離し、それ以外の個別株は「個別株」に集計します。
 - 動作確認用に `seeds/rakuten-holdings-sample.csv` を同梱しています。
 
-### パスコード認証（任意）
+### パスコード / パスキー認証（任意）
 
-公開時は `APP_PASSCODE` を設定すると、ログイン画面なしでは台帳を開けなくなります。
+公開時は `APP_PASSCODE` を設定するか、設定画面からパスキーを登録すると、ログイン画面なしでは台帳を開けなくなります。
 
 ```bash
 # ローカル
@@ -60,9 +60,12 @@ cp .dev.vars.example .dev.vars
 npx wrangler secret put APP_PASSCODE
 ```
 
-- セッションは HMAC 署名付きの HttpOnly Cookie として30日間保持されます。
-- パスコードは推測されにくい12文字以上を推奨します。セッション署名鍵は PBKDF2 で導出しています。
-- 設定を空にすると認証は無効になり、これまでどおりオープンアクセスで動作します。
+- `APP_PASSCODE` を設定すると、パスコードでログインできます。パスコードは推測されにくい12文字以上を推奨します。
+- 設定 → パスキーから端末の生体認証やPINを使うパスキーを追加できます。パスキーだけを登録した場合もログイン必須になります。
+- パスキーは WebAuthn の資格情報として D1 に保存します。パスキーはオリジンごとなので、ローカルの `localhost` で登録したものは本番ドメインでは使えません。
+- セッションは HMAC 署名付きの HttpOnly Cookie として30日間保持されます。署名鍵は D1 に保存した秘密と `APP_PASSCODE` から PBKDF2 で導出するため、パスコードを変更すると既存セッションは無効になります。
+- パスコードもパスキーも使えなくなった場合は、`npx wrangler secret put APP_PASSCODE` で新しいパスコードを設定してログインし、設定画面からパスキーを整理してください。
+- どちらも設定していない場合は認証が無効になり、これまでどおりオープンアクセスで動作します。
 - 画像配信 API とアップロード API も、認証が有効なときは同じセッションを要求します。
 
 ## Cloudflare へのデプロイ
@@ -99,12 +102,12 @@ src/
 │   ├── stock-goals.tsx      # 優待株の目標・購入ペース
 │   ├── gear.tsx             # 機材台帳・画像アップロード
 │   ├── self-investment.tsx  # 自己投資とキャリア ROI
-│   ├── settings.tsx         # プロフィール・目標・持株会・JIS&T設定
-│   ├── login.tsx            # パスコードログイン
+│   ├── settings.tsx         # プロフィール・目標・持株会・JIS&T・パスキー設定
+│   ├── login.tsx            # パスコード / パスキーログイン
 │   └── api/                 # R2 アップロード / 画像配信
 ├── components/              # UI、ダッシュボードカード、各ダイアログ
 ├── components/stocks/       # 優待株カード・目標ダイアログ
-├── components/settings/     # 確定拠出年金などの設定カード
+├── components/settings/     # 確定拠出年金・パスキーなどの設定カード
 ├── lib/finance.ts           # NISA・持株会・優待株・確定拠出年金・ポートフォリオ・ROI の計算
 ├── lib/rakuten-csv.ts       # 楽天証券CSVの解析（UTF-8 / Shift_JIS）
 ├── server/                  # サーバー関数、D1 クエリ、認証
@@ -143,6 +146,9 @@ seeds/rakuten-holdings-sample.csv # 動作確認用のCSVサンプル
 D1 のテーブルはすべて単一ユーザー前提のシングルトン、または履歴テーブルです。将来のマルチテナント化を見据えて、各テーブルには `user_id` を追加できる形にしています。
 
 - `app_settings` — ニックネーム、生年月日、NISA 目標、警告ライン、レンズ積立
+- `auth_passkeys` — パスキーの資格情報（credential ID・公開鍵・カウンタ・名前）
+- `auth_config` — セッション署名に使うサーバー側の秘密
+- `auth_challenges` — WebAuthn の登録・ログイン用チャレンジ（検証時に消費）
 - `holding_stock_status` — 持株会の拠出額・奨励金率・保有株数・記録日・平均取得単価・繰越金
 - `holding_withdrawals` — 持株会から証券口座へ引き出した日付・株数・取得単価・株価・引出し先
 - `stock_goals` — 優待株の目標株数・期限・現在株数・最小購入単位・月予算・優待内容

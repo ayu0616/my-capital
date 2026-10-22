@@ -7,7 +7,7 @@ import {
   fetchSettingsData,
   fetchStockGoalsData,
 } from './db.server'
-import { isAuthRequired } from './auth.server'
+import { isAuthRequired, isPasscodeEnabled } from './auth.server'
 
 /**
  * Client-safe server function definitions. Keeping this module free of
@@ -38,6 +38,7 @@ export const getStockGoalsData = createServerFn({ method: 'GET' }).handler(
 export const getSettingsData = createServerFn({ method: 'GET' }).handler(
   async () => ({
     ...(await fetchSettingsData()),
-    authRequired: isAuthRequired(),
+    authRequired: await isAuthRequired(),
+    passcodeEnabled: isPasscodeEnabled(),
   }),
 )
