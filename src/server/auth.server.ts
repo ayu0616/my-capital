@@ -273,7 +273,7 @@ export async function passkeyRegistrationOptions() {
     })),
     authenticatorSelection: {
       residentKey: 'preferred',
-      userVerification: 'preferred',
+      userVerification: 'required',
     },
   })
   await startChallenge(options.challenge, 'registration')
@@ -332,7 +332,7 @@ export async function passkeyAuthenticationOptions() {
       id: passkey.credentialId,
       transports: parseTransports(passkey.transports),
     })),
-    userVerification: 'preferred',
+    userVerification: 'required',
   })
   await startChallenge(options.challenge, 'authentication')
   return options
