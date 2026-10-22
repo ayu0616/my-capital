@@ -26,6 +26,7 @@ import {
 } from '../db/schema'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
 import { buildAssetSnapshots } from '../lib/asset-history'
+import { fetchFujitsuStockQuote } from './stock-price.server'
 
 /**
  * Server-only data access. Never import this module from a component or a
@@ -121,6 +122,64 @@ export async function readStockGoals() {
     .select()
     .from(stockGoals)
     .orderBy(asc(stockGoals.targetDate), asc(stockGoals.createdAt))
+}
+
+export async function syncFujitsuStockPrice(options: { force?: boolean } = {}) {
+  const db = getDb()
+  const holding = await readHolding()
+  const today = toDateOnlyString(todayDateOnly())
+
+  if (!options.force) {
+    const [latest] = await db
+      .select({ valuedAt: assetEntries.valuedAt, value: assetEntries.value })
+      .from(assetEntries)
+      .where(eq(assetEntries.itemKey, 'fujitsu_price'))
+      .orderBy(desc(assetEntries.valuedAt))
+      .limit(1)
+    if (latest?.valuedAt === today) {
+      return {
+        price: latest.value,
+        updated: false,
+        source: null,
+        asOf: null,
+      }
+    }
+  }
+
+  const quote = await fetchFujitsuStockQuote()
+  const now = new Date().toISOString()
+
+  await db
+    .update(holdingStockStatus)
+    .set({ latestStockPrice: quote.price, updatedAt: now })
+    .where(eq(holdingStockStatus.id, holding.id))
+
+  await db
+    .insert(assetEntries)
+    .values({
+      id: crypto.randomUUID(),
+      itemKey: 'fujitsu_price',
+      valuedAt: today,
+      value: quote.price,
+      notes: '富士通株価の自動取得',
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [assetEntries.itemKey, assetEntries.valuedAt],
+      set: {
+        value: quote.price,
+        notes: '富士通株価の自動取得',
+        updatedAt: now,
+      },
+    })
+
+  return {
+    price: quote.price,
+    updated: true,
+    source: quote.source,
+    asOf: quote.asOf,
+  }
 }
 
 export async function readRetirementAccount() {
@@ -261,6 +320,7 @@ export async function consumeAuthChallenge(
 
 export async function fetchDashboardData() {
   await ensureBaseRows()
+  await syncFujitsuStockPrice().catch(() => null)
   const db = getDb()
   const [
     settings,
@@ -318,6 +378,7 @@ export async function fetchStockGoalsData() {
 
 export async function fetchAssetsData() {
   await ensureBaseRows()
+  await syncFujitsuStockPrice().catch(() => null)
   const db = getDb()
   const [
     settings,
