@@ -22,12 +22,6 @@ export function Topbar() {
         </Link>
 
         <div className="hidden items-center gap-2 text-[0.68rem] font-medium text-muted lg:flex">
-          <span className="relative flex size-1.5">
-            <span className="absolute inline-flex size-full rounded-full bg-positive/50 pulse-soft" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-positive" />
-          </span>
-          Cloudflare D1 に保存
-          <span className="mx-1 h-3 w-px bg-line" />
           <span suppressHydrationWarning>{todayLabel()}</span>
         </div>
 

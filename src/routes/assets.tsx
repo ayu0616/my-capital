@@ -128,7 +128,7 @@ function AssetsPage() {
           value={formatYen(portfolio.financialTotal)}
           icon={Landmark}
           tone="ink"
-          hint="現預金＋証券預り金＋投資信託＋個別株＋JIS&T＋富士通＋引出し済み＋繰越金"
+          info="現預金＋証券預り金＋投資信託＋個別株＋JIS&T＋富士通＋引出し済み＋繰越金"
         />
         <MetricCard
           label="NISA累計元本"

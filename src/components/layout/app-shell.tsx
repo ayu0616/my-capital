@@ -19,10 +19,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
           <footer className="mt-14 flex flex-col gap-2 border-t border-line/70 pt-5 text-[0.62rem] text-muted sm:flex-row sm:items-center sm:justify-between">
             <span>© 2026 Asset &amp; Life Studio</span>
-            <span className="flex items-center gap-2">
-              <span className="size-1 rounded-full bg-brand/50" />
-              Built on Cloudflare Workers · D1 · R2
-            </span>
           </footer>
         </main>
       </div>

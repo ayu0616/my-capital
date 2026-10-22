@@ -2,11 +2,13 @@ import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 import { Card } from './card'
+import { InfoTip } from './info-tip'
 
 export function MetricCard({
   label,
   value,
   hint,
+  info,
   icon: Icon,
   badge,
   tone = 'brand',
@@ -15,6 +17,7 @@ export function MetricCard({
   label: string
   value: ReactNode
   hint?: ReactNode
+  info?: string
   icon: LucideIcon
   badge?: ReactNode
   tone?: 'brand' | 'gold' | 'ink' | 'muted'
@@ -30,7 +33,10 @@ export function MetricCard({
   return (
     <Card className={cn('relative overflow-hidden p-4 sm:p-5', className)}>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[0.64rem] font-medium text-muted">{label}</p>
+        <span className="inline-flex items-center gap-1.5">
+          <p className="text-[0.64rem] font-medium text-muted">{label}</p>
+          {info ? <InfoTip text={info} /> : null}
+        </span>
         <span
           className={cn(
             'flex size-7 shrink-0 items-center justify-center rounded-lg border',

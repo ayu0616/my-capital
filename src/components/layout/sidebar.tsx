@@ -62,18 +62,6 @@ export function Sidebar() {
       </nav>
 
       <div className="relative z-10 mt-auto space-y-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-          <p className="text-[0.52rem] font-bold tracking-[0.24em] text-[#d2b27c]">
-            MONTHLY RECORD
-          </p>
-          <p className="mt-2.5 font-display text-[0.98rem] leading-snug text-white/90">
-            毎月の記録を、ここで管理します。
-          </p>
-          <p className="mt-2 text-[0.62rem] leading-relaxed text-white/40">
-            資産・機材・自己投資の推移を確認できます。
-          </p>
-        </div>
-
         <Link
           to="/settings"
           className="group flex items-center gap-2.5 border-t border-white/10 pt-4"

@@ -52,7 +52,7 @@ export const DEFAULT_ACCOUNTS: Omit<
     institution: '楽天証券',
     kind: 'brokerage',
     role: 'NISA・投資信託・個別株',
-    notes: 'NISAの積立と個別株の保有。保有資産CSVの取り込み先。',
+    notes: null,
     sortOrder: 10,
   },
   {
@@ -61,7 +61,7 @@ export const DEFAULT_ACCOUNTS: Omit<
     institution: 'SMBC日興証券',
     kind: 'brokerage',
     role: '持株会の引出し先',
-    notes: '富士通の持株会から引き出した株式を保管する口座。',
+    notes: null,
     sortOrder: 20,
   },
   {
@@ -70,7 +70,7 @@ export const DEFAULT_ACCOUNTS: Omit<
     institution: '楽天銀行',
     kind: 'bank',
     role: 'メイン口座',
-    notes: '生活費と現金の中心。',
+    notes: null,
     sortOrder: 30,
   },
   {
@@ -79,7 +79,7 @@ export const DEFAULT_ACCOUNTS: Omit<
     institution: '三井住友銀行',
     kind: 'bank',
     role: 'サブ口座',
-    notes: 'サブの預金口座。',
+    notes: null,
     sortOrder: 40,
   },
   {
@@ -88,7 +88,7 @@ export const DEFAULT_ACCOUNTS: Omit<
     institution: 'JIS&T',
     kind: 'pension',
     role: '会社の確定拠出年金',
-    notes: '会社型DC。評価額と拠出額は設定の確定拠出年金で管理します。',
+    notes: null,
     sortOrder: 50,
   },
 ]
