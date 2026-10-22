@@ -93,7 +93,7 @@ export function GearPreview({
               </div>
             </div>
             <p className="mt-2 text-[0.55rem] leading-relaxed text-muted">
-              {summary.count}点を保有。現在の買取目安から、機材の残存率を計算しています。
+              {summary.count}点を保有
             </p>
           </>
         )}

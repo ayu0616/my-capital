@@ -10,7 +10,6 @@ import { Badge } from '../ui/form'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardKicker,
   CardTitle,
@@ -31,9 +30,6 @@ export function StockGoalsCard({
         <div>
           <CardKicker>Shareholder benefits</CardKicker>
           <CardTitle className="mt-1.5">優待株の進捗</CardTitle>
-          <CardDescription>
-            目標株数と期限から見た、現在の購入ペースです。
-          </CardDescription>
         </div>
         <Link
           to="/stock-goals"

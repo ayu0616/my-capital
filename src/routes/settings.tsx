@@ -20,7 +20,6 @@ import { Button } from '../components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardKicker,
   CardTitle,
@@ -183,9 +182,6 @@ function ProfileForm({
         <div>
           <CardKicker>Profile &amp; goals</CardKicker>
           <CardTitle className="mt-1.5">プロフィールと目標</CardTitle>
-          <CardDescription>
-            プロフィール、NISAの目標時期、富士通株の警告ラインを設定します。
-          </CardDescription>
         </div>
       </CardHeader>
       <CardContent>
@@ -404,9 +400,6 @@ function HoldingForm({
         <div>
           <CardKicker>Employee holding</CardKicker>
           <CardTitle className="mt-1.5">富士通・持株会</CardTitle>
-          <CardDescription>
-            会社ページの記録と、目標株数までの積立プランを管理します。
-          </CardDescription>
         </div>
         <Badge variant="gold">{formatPercent(progress)}</Badge>
       </CardHeader>
@@ -616,9 +609,6 @@ function AccountsCard({
         <div>
           <CardKicker>Accounts</CardKicker>
           <CardTitle className="mt-1.5">口座と役割</CardTitle>
-          <CardDescription>
-            資産の置き場所と、このアプリでの扱いを整理しています。
-          </CardDescription>
         </div>
         <Building2 className="size-4 text-muted" />
       </CardHeader>
@@ -693,9 +683,6 @@ function DataCard({
         <div>
           <CardKicker>Data &amp; environment</CardKicker>
           <CardTitle className="mt-1.5">データと環境</CardTitle>
-          <CardDescription>
-            数値とテキストは Cloudflare D1、機材画像は R2 に保存されています。
-          </CardDescription>
         </div>
         <Database className="size-4 text-muted" />
       </CardHeader>

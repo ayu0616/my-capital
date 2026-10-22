@@ -26,7 +26,6 @@ import { Button } from '../ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardKicker,
   CardTitle,
@@ -150,9 +149,6 @@ export function WithdrawalCard({
         <div>
           <CardKicker>Holding withdrawal</CardKicker>
           <CardTitle className="mt-1.5">持株会の引出し</CardTitle>
-          <CardDescription>
-            SMBC日興証券へ引き出した株数を記録します。記録すると持株会の現在株数から差し引きます。
-          </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={openNew}>
           <Plus className="size-3.5" />
@@ -406,11 +402,6 @@ function WithdrawalDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={withdrawal ? '引出しの記録を編集' : '持株会から引き出す'}
-      description={
-        withdrawal
-          ? '株数を変更すると、持株会の現在株数も調整されます。'
-          : '記録すると、持株会の現在株数から引き出した株数を差し引きます。'
-      }
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

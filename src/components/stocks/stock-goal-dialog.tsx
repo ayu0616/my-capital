@@ -181,7 +181,7 @@ export function StockGoalDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={goal ? '優待株の目標を編集' : '優待株の目標を追加'}
-      description="目標株数と期限から、必要な購入ペースを計算します。100株到達などの株主優待を想定しています。"
+      description="目標株数と期限から、必要な購入ペースを計算します。"
       size="lg"
       footer={
         <>

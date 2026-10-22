@@ -37,9 +37,7 @@ export function NisaCard({
               {Math.round(plan.progress * 100)}
               <span className="ml-0.5 text-[0.8rem] text-muted">%</span>
             </span>
-            <span className="mt-1 text-[0.48rem] font-bold tracking-[0.18em] text-muted">
-              PROGRESS
-            </span>
+
           </ProgressRing>
 
           <div className="min-w-0 flex-1">
@@ -100,11 +98,11 @@ export function NisaCard({
               style={{ width: `${plan.progress * 100}%` }}
             />
           </div>
-          <p className="mt-2 text-[0.6rem] leading-relaxed text-muted">
-            {plan.isComplete
-              ? `設定した目標額（${formatCompactYen(plan.targetAmount)}）に到達しました。`
-              : '目標額と目標年齢から、必要な月額を計算しています。'}
-          </p>
+          {plan.isComplete ? (
+            <p className="mt-2 text-[0.6rem] leading-relaxed text-muted">
+              設定した目標額（{formatCompactYen(plan.targetAmount)}）に到達しました。
+            </p>
+          ) : null}
         </div>
       </CardContent>
     </Card>

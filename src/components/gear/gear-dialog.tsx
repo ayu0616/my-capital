@@ -141,7 +141,6 @@ export function GearDialog({
       onOpenChange={onOpenChange}
       size="lg"
       title={gear ? '機材を編集' : '機材を追加'}
-      description="購入額と現在の買取目安を登録すると、純資産に反映されます。"
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

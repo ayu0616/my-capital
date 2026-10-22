@@ -29,7 +29,6 @@ import { Button } from '../ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardKicker,
   CardTitle,
@@ -213,9 +212,6 @@ export function RetirementCard({
           <CardTitle className="mt-1.5">
             確定拠出年金（JIS&amp;T）
           </CardTitle>
-          <CardDescription>
-            会社型DCの評価額、累計拠出額、商品配分を管理します。
-          </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Pencil className="size-3.5" />

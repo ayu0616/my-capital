@@ -79,10 +79,6 @@ export function LensFundCard({
           barClassName="bg-[linear-gradient(90deg,#b3823d,#e0bd82)]"
           label="レンズ積立の進捗"
         />
-        <p className="mt-2 text-[0.58rem] leading-relaxed text-muted">
-          レンズ購入のために積み立てた金額です。
-        </p>
-
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-line/70 pt-3.5">
           <Link
             to="/gear"

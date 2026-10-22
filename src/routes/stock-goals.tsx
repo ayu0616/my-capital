@@ -87,7 +87,6 @@ function StockGoalsPage() {
       <PageHeader
         kicker="Shareholder benefits"
         title="優待株"
-
         actions={
           <Button onClick={openNew}>
             <Plus className="size-3.5" />

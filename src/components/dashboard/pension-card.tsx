@@ -10,7 +10,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardKicker,
   CardTitle,
@@ -35,9 +34,6 @@ export function PensionCard({
         <div>
           <CardKicker>Defined contribution</CardKicker>
           <CardTitle className="mt-1.5">確定拠出年金（JIS&amp;T）</CardTitle>
-          <CardDescription>
-            会社型DCの評価額と拠出額です。
-          </CardDescription>
         </div>
         <Link
           to="/settings"

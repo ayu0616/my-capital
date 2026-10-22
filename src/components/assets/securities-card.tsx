@@ -30,7 +30,6 @@ import { Button } from '../ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardKicker,
   CardTitle,
@@ -62,9 +61,6 @@ export function SecuritiesCard({
         <div>
           <CardKicker>Rakuten Securities</CardKicker>
           <CardTitle className="mt-1.5">楽天証券の保有銘柄</CardTitle>
-          <CardDescription>
-            「保有商品一覧（すべて）」のCSVを取り込むと、投資信託・個別株・預り金を月次記録へ反映します。
-          </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Upload className="size-3.5" />
