@@ -165,6 +165,14 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .tabular {
   font-variant-numeric: tabular-nums lining-nums;
 }
