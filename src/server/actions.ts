@@ -9,6 +9,8 @@ import {
   careerEvents,
   holdingStockStatus,
   holdingWithdrawals,
+  loanPayments,
+  loans,
   retirementAccounts,
   retirementAllocations,
   securitiesHoldings,
@@ -27,6 +29,12 @@ import { toDateOnlyString, todayDateOnly } from '../lib/format'
 const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, '日付の形式が正しくありません')
+const optionalDateString = z
+  .string()
+  .refine(
+    (value) => value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value),
+    '日付の形式が正しくありません',
+  )
 const optionalNotes = z.string().trim().max(1000).optional().nullable()
 
 function newId() {
@@ -250,6 +258,220 @@ export const refreshHoldingStockPrice = createServerFn({ method: 'POST' })
   .handler(async () => {
     const quote = await syncFujitsuStockPrice({ force: true })
     return { ok: true as const, ...quote }
+  })
+
+/* -------------------------------------------------------------------------- */
+/*  Scholarships & loans                                                      */
+/* -------------------------------------------------------------------------- */
+
+async function syncLoanBalanceEntry(valuedAt: string) {
+  const db = getDb()
+  const rows = await db
+    .select({ currentBalance: loans.currentBalance })
+    .from(loans)
+  const total = rows.reduce(
+    (sum, loan) => sum + Math.max(0, Number(loan.currentBalance) || 0),
+    0,
+  )
+  const now = new Date().toISOString()
+  await db
+    .insert(assetEntries)
+    .values({
+      id: newId(),
+      itemKey: 'loan_balance',
+      valuedAt,
+      value: total,
+      notes: '奨学金・ローンの残高',
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [assetEntries.itemKey, assetEntries.valuedAt],
+      set: {
+        value: total,
+        notes: '奨学金・ローンの残高',
+        updatedAt: now,
+      },
+    })
+  return total
+}
+
+const loanInput = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().trim().min(1, '名称を入力してください').max(120),
+  lender: z.string().trim().max(120).default(''),
+  kind: z.enum(['scholarship', 'loan', 'other']),
+  principalAmount: z.number().int().min(0).max(1_000_000_000_000),
+  currentBalance: z.number().int().min(0).max(1_000_000_000_000),
+  interestRate: z.number().min(0).max(100),
+  monthlyPayment: z.number().int().min(0).max(100_000_000),
+  borrowedAt: dateString,
+  repaymentEndDate: optionalDateString,
+  notes: optionalNotes,
+})
+
+export const saveLoan = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => loanInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const now = new Date().toISOString()
+    const values = {
+      name: data.name,
+      lender: data.lender,
+      kind: data.kind,
+      principalAmount: data.principalAmount,
+      currentBalance: data.currentBalance,
+      interestRate: data.interestRate,
+      monthlyPayment: data.monthlyPayment,
+      borrowedAt: data.borrowedAt,
+      repaymentEndDate: data.repaymentEndDate,
+      notes: data.notes ?? null,
+      updatedAt: now,
+    }
+
+    if (data.id) {
+      const [existing] = await db
+        .select()
+        .from(loans)
+        .where(eq(loans.id, data.id))
+        .limit(1)
+      if (!existing) throw new Error('奨学金・ローンの記録が見つかりませんでした')
+      await db.update(loans).set(values).where(eq(loans.id, data.id))
+    } else {
+      await db.insert(loans).values({
+        id: newId(),
+        ...values,
+        createdAt: now,
+      })
+    }
+
+    await syncLoanBalanceEntry(toDateOnlyString(todayDateOnly()))
+    return { ok: true as const, id: data.id ?? 'created' }
+  })
+
+export const deleteLoan = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    await db.delete(loanPayments).where(eq(loanPayments.loanId, data.id))
+    await db.delete(loans).where(eq(loans.id, data.id))
+    await syncLoanBalanceEntry(toDateOnlyString(todayDateOnly()))
+    return { ok: true as const }
+  })
+
+const loanPaymentInput = z.object({
+  id: z.string().min(1).optional(),
+  loanId: z.string().min(1),
+  paidAt: dateString,
+  amount: z.number().int().min(0).max(1_000_000_000),
+  principalAmount: z.number().int().min(0).max(1_000_000_000),
+  interestAmount: z.number().int().min(0).max(1_000_000_000),
+  notes: optionalNotes,
+})
+
+export const saveLoanPayment = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => loanPaymentInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const [loan] = await db
+      .select()
+      .from(loans)
+      .where(eq(loans.id, data.loanId))
+      .limit(1)
+    if (!loan) throw new Error('奨学金・ローンの記録が見つかりませんでした')
+
+    const existing = data.id
+      ? (
+          await db
+            .select()
+            .from(loanPayments)
+            .where(eq(loanPayments.id, data.id))
+            .limit(1)
+        )[0]
+      : null
+
+    if (data.id && !existing) {
+      throw new Error('返済記録が見つかりませんでした')
+    }
+    if (existing && existing.loanId !== data.loanId) {
+      throw new Error('返済記録の対象が変わっています')
+    }
+
+    const previousPrincipal = existing?.principalAmount ?? 0
+    const available = loan.currentBalance + previousPrincipal
+    if (data.principalAmount > available + 0.01) {
+      throw new Error('現在の残高を超える元金は記録できません')
+    }
+
+    const nextBalance = Math.max(
+      0,
+      Math.round(available - data.principalAmount),
+    )
+    const now = new Date().toISOString()
+    const values = {
+      loanId: data.loanId,
+      paidAt: data.paidAt,
+      amount: data.amount,
+      principalAmount: data.principalAmount,
+      interestAmount: data.interestAmount,
+      balanceAfter: nextBalance,
+      notes: data.notes ?? null,
+      updatedAt: now,
+    }
+
+    if (existing) {
+      await db
+        .update(loanPayments)
+        .set(values)
+        .where(eq(loanPayments.id, existing.id))
+    } else {
+      await db.insert(loanPayments).values({
+        id: newId(),
+        ...values,
+        createdAt: now,
+      })
+    }
+
+    await db
+      .update(loans)
+      .set({ currentBalance: nextBalance, updatedAt: now })
+      .where(eq(loans.id, data.loanId))
+
+    await syncLoanBalanceEntry(toDateOnlyString(todayDateOnly()))
+    return { ok: true as const, balanceAfter: nextBalance }
+  })
+
+export const deleteLoanPayment = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const [existing] = await db
+      .select()
+      .from(loanPayments)
+      .where(eq(loanPayments.id, data.id))
+      .limit(1)
+    if (!existing) return { ok: true as const }
+
+    const [loan] = await db
+      .select()
+      .from(loans)
+      .where(eq(loans.id, existing.loanId))
+      .limit(1)
+    const now = new Date().toISOString()
+    if (loan) {
+      const nextBalance = Math.max(
+        0,
+        loan.currentBalance + existing.principalAmount,
+      )
+      await db
+        .update(loans)
+        .set({ currentBalance: nextBalance, updatedAt: now })
+        .where(eq(loans.id, loan.id))
+    }
+
+    await db.delete(loanPayments).where(eq(loanPayments.id, data.id))
+    await syncLoanBalanceEntry(toDateOnlyString(todayDateOnly()))
+    return { ok: true as const }
   })
 
 /* -------------------------------------------------------------------------- */

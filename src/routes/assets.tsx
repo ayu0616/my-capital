@@ -121,7 +121,15 @@ function AssetsPage() {
           label="純資産（機材込み）"
           value={formatYen(portfolio.total)}
           icon={Wallet}
-          hint={latest ? `${formatYearMonth(latest.yearMonth)} 時点` : '記録待ち'}
+          hint={
+            latest
+              ? `${formatYearMonth(latest.yearMonth)} 時点${
+                  portfolio.liabilityTotal > 0
+                    ? ` · 負債 ${formatYen(portfolio.liabilityTotal)} 控除`
+                    : ''
+                }`
+              : '記録待ち'
+          }
         />
         <MetricCard
           label="金融資産"
@@ -170,7 +178,7 @@ function AssetsPage() {
       <Card className="mt-4">
         <CardHeader className="items-center">
           <div>
-            <CardTitle>資産項目の記録</CardTitle>
+            <CardTitle>資産・負債項目の記録</CardTitle>
           </div>
           <Button variant="outline" size="sm" onClick={() => setAllOpen(true)}>
             <Plus className="size-3.5" />
@@ -257,7 +265,7 @@ function AssetsPage() {
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[1120px] border-collapse text-left">
+                <table className="w-full min-w-[1200px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-line text-[0.56rem] font-bold uppercase tracking-[0.12em] text-muted">
                       <th className="py-2.5 pr-3 font-bold">年月</th>
@@ -269,6 +277,7 @@ function AssetsPage() {
                       <th className="px-3 py-2.5 text-right font-bold">NISA元本</th>
                       <th className="px-3 py-2.5 text-right font-bold">富士通</th>
                       <th className="px-3 py-2.5 text-right font-bold">機材</th>
+                      <th className="px-3 py-2.5 text-right font-bold">負債</th>
                       <th className="px-3 py-2.5 text-right font-bold">純資産</th>
                     </tr>
                   </thead>
@@ -331,6 +340,9 @@ function AssetsPage() {
                           <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
                             {formatYen(snapshot.gearResaleAmount)}
                           </td>
+                          <td className="px-3 py-3 text-right text-[0.7rem] tabular text-muted">
+                            {formatYen(snapshot.loanBalance)}
+                          </td>
                           <td className="px-3 py-3 text-right text-[0.76rem] font-bold tabular text-ink">
                             {formatYen(total)}
                           </td>
@@ -390,6 +402,11 @@ function AssetsPage() {
                         <span className="rounded-full bg-canvas/70 px-2 py-0.5">
                           機材 {formatYen(snapshot.gearResaleAmount)}
                         </span>
+                        {snapshot.loanBalance > 0 ? (
+                          <span className="rounded-full bg-canvas/70 px-2 py-0.5">
+                            負債 {formatYen(snapshot.loanBalance)}
+                          </span>
+                        ) : null}
                       </div>
                     </li>
                   )

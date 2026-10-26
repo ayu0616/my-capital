@@ -3,6 +3,7 @@ import {
   Camera,
   Gift,
   GraduationCap,
+  Landmark,
   LayoutDashboard,
   Settings,
   Wallet,
@@ -10,12 +11,13 @@ import {
 import { BrandMark } from './brand-mark'
 
 const navItems = [
-  { to: '/', label: 'ダッシュボード', icon: LayoutDashboard, code: '01' },
-  { to: '/assets', label: '資産管理', icon: Wallet, code: '02' },
-  { to: '/stock-goals', label: '優待株', icon: Gift, code: '03' },
-  { to: '/gear', label: '機材台帳', icon: Camera, code: '04' },
-  { to: '/self-investment', label: '自己投資', icon: GraduationCap, code: '05' },
-  { to: '/settings', label: '設定', icon: Settings, code: '06' },
+  { to: '/', label: 'ダッシュボード', shortLabel: 'ホーム', icon: LayoutDashboard, code: '01' },
+  { to: '/assets', label: '資産管理', shortLabel: '資産', icon: Wallet, code: '02' },
+  { to: '/loans', label: '奨学金・ローン', shortLabel: '奨学金', icon: Landmark, code: '03' },
+  { to: '/stock-goals', label: '優待株', shortLabel: '優待株', icon: Gift, code: '04' },
+  { to: '/gear', label: '機材台帳', shortLabel: '機材', icon: Camera, code: '05' },
+  { to: '/self-investment', label: '自己投資', shortLabel: '自己投資', icon: GraduationCap, code: '06' },
+  { to: '/settings', label: '設定', shortLabel: '設定', icon: Settings, code: '07' },
 ] as const
 
 export function Sidebar() {
@@ -89,7 +91,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="mobile-nav fixed inset-x-0 bottom-0 z-50 grid grid-cols-6 lg:hidden"
+      className="mobile-nav fixed inset-x-0 bottom-0 z-50 grid grid-cols-7 lg:hidden"
       aria-label="モバイルナビゲーション"
     >
       {navItems.map((item) => {
@@ -105,7 +107,7 @@ export function MobileNav() {
             className="mobile-nav-item"
           >
             <Icon className="size-[1.15rem]" strokeWidth={active ? 2.4 : 1.8} />
-            <span>{item.label === 'ダッシュボード' ? 'ホーム' : item.label}</span>
+            <span>{item.shortLabel}</span>
           </Link>
         )
       })}

@@ -4,6 +4,7 @@ import { GearPreview } from '../components/dashboard/gear-preview'
 import { HoldingCard } from '../components/dashboard/holding-card'
 import { HumanCapitalCard } from '../components/dashboard/human-capital-card'
 import { LensFundCard } from '../components/dashboard/lens-fund-card'
+import { LoansCard } from '../components/dashboard/loans-card'
 import { NetWorthHero } from '../components/dashboard/net-worth-hero'
 import { NisaCard } from '../components/dashboard/nisa-card'
 import { PensionCard } from '../components/dashboard/pension-card'
@@ -18,6 +19,7 @@ import {
   buildGearSummary,
   buildHoldingPlan,
   buildHumanCapital,
+  buildLoanSummaries,
   buildMonthlySeries,
   buildNetWorthTrend,
   buildNisaPlan,
@@ -49,6 +51,7 @@ function Dashboard() {
     stockGoals,
     retirement,
     retirementAllocations,
+    loans,
   } = data
   const today = parseDateOnly(data.today)
   const latest = snapshots.at(-1) ?? null
@@ -77,6 +80,7 @@ function Dashboard() {
     retirement,
     retirementAllocations,
   )
+  const loanSummaries = buildLoanSummaries(loans, today)
 
   return (
     <>
@@ -113,6 +117,10 @@ function Dashboard() {
 
         <TrendCard className="lg:col-span-7" series={series} />
         <PortfolioCard className="lg:col-span-5" portfolio={portfolio} />
+
+        {loanSummaries.length > 0 ? (
+          <LoansCard className="lg:col-span-12" summaries={loanSummaries} />
+        ) : null}
 
         <HoldingCard className="lg:col-span-5" plan={holdingPlan} />
         <LensFundCard className="lg:col-span-3" settings={settings} />
