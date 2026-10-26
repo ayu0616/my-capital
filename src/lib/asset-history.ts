@@ -43,6 +43,7 @@ export function buildAssetSnapshots(
       holdingAverageAcquisitionPrice: 0,
       holdingCarryoverAmount: 0,
       fujitsuCurrentPrice: 0,
+      loanBalance: 0,
       gearResaleAmount: 0,
       notes: null,
       createdAt: sortedEntries[0]?.createdAt ?? new Date().toISOString(),

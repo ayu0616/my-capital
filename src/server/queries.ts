@@ -3,6 +3,7 @@ import {
   fetchAssetsData,
   fetchDashboardData,
   fetchGearData,
+  fetchLoansData,
   fetchSelfInvestmentData,
   fetchSettingsData,
   fetchStockGoalsData,
@@ -25,6 +26,10 @@ export const getAssetsData = createServerFn({ method: 'GET' }).handler(
 
 export const getGearData = createServerFn({ method: 'GET' }).handler(async () =>
   fetchGearData(),
+)
+
+export const getLoansData = createServerFn({ method: 'GET' }).handler(
+  async () => fetchLoansData(),
 )
 
 export const getSelfInvestmentData = createServerFn({ method: 'GET' }).handler(

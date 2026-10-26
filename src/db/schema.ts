@@ -267,6 +267,59 @@ export const securitiesHoldings = sqliteTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/*  Scholarships & loans (liabilities)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 奨学金・ローンの台帳。残高は返済記録で減らせるほか、直接編集もできる。
+ * 残高の合計は asset_entries の loan_balance に集約し、純資産から差し引く。
+ */
+export const loans = sqliteTable(
+  'loans',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    lender: text('lender').notNull().default(''),
+    kind: text('kind').notNull().default('scholarship'), // 'scholarship' | 'loan' | 'other'
+    principalAmount: integer('principal_amount').notNull().default(0), // 借入額
+    currentBalance: integer('current_balance').notNull().default(0), // 現在の残高
+    interestRate: real('interest_rate').notNull().default(0), // 年利（%）
+    monthlyPayment: integer('monthly_payment').notNull().default(0), // 月額返済
+    borrowedAt: text('borrowed_at').notNull().default(''), // YYYY-MM-DD
+    repaymentEndDate: text('repayment_end_date').notNull().default(''), // YYYY-MM-DD
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('loans_repayment_end_idx').on(table.repaymentEndDate),
+  ],
+)
+
+/**
+ * 奨学金・ローンの返済履歴。元金が現在残高から差し引かれる。
+ */
+export const loanPayments = sqliteTable(
+  'loan_payments',
+  {
+    id: text('id').primaryKey(),
+    loanId: text('loan_id').notNull(),
+    paidAt: text('paid_at').notNull(), // YYYY-MM-DD
+    amount: integer('amount').notNull().default(0), // 返済額
+    principalAmount: integer('principal_amount').notNull().default(0), // 元金
+    interestAmount: integer('interest_amount').notNull().default(0), // 利息
+    balanceAfter: integer('balance_after').notNull().default(0), // 返済後残高
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('loan_payments_loan_idx').on(table.loanId),
+    index('loan_payments_paid_at_idx').on(table.paidAt),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Monthly asset snapshots                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -290,6 +343,7 @@ export const assetSnapshots = sqliteTable(
     holdingAverageAcquisitionPrice: real('holding_average_acquisition_price').notNull().default(0), // 持株会の平均取得単価
     holdingCarryoverAmount: integer('holding_carryover_amount').notNull().default(0), // 持株会の繰越金
     fujitsuCurrentPrice: real('fujitsu_current_price').notNull(), // 基準株価
+    loanBalance: integer('loan_balance').notNull().default(0), // 奨学金・ローンの残高（純資産から控除）
     gearResaleAmount: integer('gear_resale_amount').notNull().default(0), // 機材残存価値
     notes: text('notes'),
     createdAt: text('created_at').notNull(),
@@ -380,6 +434,8 @@ export type RetirementAllocation = typeof retirementAllocations.$inferSelect
 export type FinancialAccount = typeof financialAccounts.$inferSelect
 export type SecuritiesImportBatch = typeof securitiesImportBatches.$inferSelect
 export type SecuritiesHolding = typeof securitiesHoldings.$inferSelect
+export type Loan = typeof loans.$inferSelect
+export type LoanPayment = typeof loanPayments.$inferSelect
 export type AssetSnapshot = typeof assetSnapshots.$inferSelect
 export type AssetEntry = typeof assetEntries.$inferSelect
 export type CameraGear = typeof cameraGears.$inferSelect

@@ -12,7 +12,7 @@ export interface AssetItemDefinition {
   hint: string
 }
 
-export const ASSET_ITEM_GROUPS = ['金融資産', '富士通・持株会', '実物資産'] as const
+export const ASSET_ITEM_GROUPS = ['金融資産', '富士通・持株会', '実物資産', '負債'] as const
 
 export const ASSET_ITEMS: AssetItemDefinition[] = [
   {
@@ -131,6 +131,15 @@ export const ASSET_ITEMS: AssetItemDefinition[] = [
     field: null,
     snapshotField: 'gearResaleAmount',
     hint: '機材台帳の買取目安の合計が初期値です。',
+  },
+  {
+    key: 'loan_balance',
+    label: '奨学金・ローンの残高',
+    group: '負債',
+    unit: 'yen',
+    field: null,
+    snapshotField: 'loanBalance',
+    hint: '奨学金・ローンの台帳の残高合計。純資産から差し引きます。',
   },
 ] as const
 

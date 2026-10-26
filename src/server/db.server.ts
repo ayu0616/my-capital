@@ -17,6 +17,8 @@ import {
   financialAccounts,
   holdingStockStatus,
   holdingWithdrawals,
+  loanPayments,
+  loans,
   retirementAccounts,
   retirementAllocations,
   securitiesHoldings,
@@ -122,6 +124,20 @@ export async function readStockGoals() {
     .select()
     .from(stockGoals)
     .orderBy(asc(stockGoals.targetDate), asc(stockGoals.createdAt))
+}
+
+export async function readLoans() {
+  return getDb()
+    .select()
+    .from(loans)
+    .orderBy(asc(loans.repaymentEndDate), asc(loans.createdAt))
+}
+
+export async function readLoanPayments() {
+  return getDb()
+    .select()
+    .from(loanPayments)
+    .orderBy(desc(loanPayments.paidAt), desc(loanPayments.createdAt))
 }
 
 export async function syncFujitsuStockPrice(options: { force?: boolean } = {}) {
@@ -333,6 +349,8 @@ export async function fetchDashboardData() {
     goals,
     retirement,
     pensionAllocations,
+    loanRows,
+    loanPaymentRows,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -347,6 +365,8 @@ export async function fetchDashboardData() {
     readStockGoals(),
     readRetirementAccount(),
     readRetirementAllocations(),
+    readLoans(),
+    readLoanPayments(),
   ])
 
   const snapshots = buildAssetSnapshots(entries, withdrawals)
@@ -363,6 +383,8 @@ export async function fetchDashboardData() {
     stockGoals: goals,
     retirement,
     retirementAllocations: pensionAllocations,
+    loans: loanRows,
+    loanPayments: loanPaymentRows,
     today: toDateOnlyString(todayDateOnly()),
   }
 }
@@ -432,6 +454,19 @@ export async function fetchAssetsData() {
   }
 }
 
+export async function fetchLoansData() {
+  await ensureBaseRows()
+  const [loanRows, paymentRows] = await Promise.all([
+    readLoans(),
+    readLoanPayments(),
+  ])
+  return {
+    loans: loanRows,
+    payments: paymentRows,
+    today: toDateOnlyString(todayDateOnly()),
+  }
+}
+
 export async function fetchGearData() {
   await ensureBaseRows()
   const db = getDb()
@@ -476,6 +511,7 @@ export async function fetchSettingsData() {
     investmentCount,
     securitiesCount,
     stockGoalCount,
+    loanCount,
     retirement,
     retirementAllocationRows,
     passkeys,
@@ -492,6 +528,7 @@ export async function fetchSettingsData() {
     db.select().from(selfInvestments),
     db.select().from(securitiesHoldings),
     db.select().from(stockGoals),
+    db.select().from(loans),
     readRetirementAccount(),
     readRetirementAllocations(),
     readPasskeySummaries(),
@@ -512,6 +549,7 @@ export async function fetchSettingsData() {
       withdrawals: withdrawals.length,
       securities: securitiesCount.length,
       stockGoals: stockGoalCount.length,
+      loans: loanCount.length,
     },
   }
 }

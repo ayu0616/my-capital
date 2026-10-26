@@ -28,7 +28,8 @@ export function NetWorthHero({
   const cashAmount = portfolio.slices
     .filter((slice) => slice.key === 'cash' || slice.key === 'securitiesCash')
     .reduce((sum, slice) => sum + slice.amount, 0)
-  const cashRatio = portfolio.total > 0 ? cashAmount / portfolio.total : 0
+  const cashRatio =
+    portfolio.assetTotal > 0 ? cashAmount / portfolio.assetTotal : 0
   const overLimit = portfolio.isFujitsuOverLimit
 
   return (
@@ -113,6 +114,23 @@ export function NetWorthHero({
           </p>
         </div>
       </div>
+
+      {portfolio.liabilityTotal > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[0.58rem] text-white/50">
+          <span>
+            負債残高{' '}
+            <span className="font-semibold text-white/80 tabular">
+              {formatYen(portfolio.liabilityTotal)}
+            </span>
+          </span>
+          <Link
+            to="/loans"
+            className="font-semibold text-[#d7b87d] underline decoration-[#d7b87d]/30 underline-offset-2 transition hover:text-[#efd6a7]"
+          >
+            返済を記録
+          </Link>
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[0.58rem] text-white/40">
         <span>現金比率 {formatPercent(cashRatio)}</span>
