@@ -16,13 +16,22 @@ export const ASSET_ITEM_GROUPS = ['金融資産', '富士通・持株会', '実�
 
 export const ASSET_ITEMS: AssetItemDefinition[] = [
   {
-    key: 'bank_cash',
-    label: '現預金（銀行）',
+    key: 'rakuten_bank',
+    label: '現預金（楽天銀行）',
     group: '金融資産',
     unit: 'yen',
     field: null,
     snapshotField: 'cashAmount',
-    hint: '楽天銀行・SMBCなど銀行口座の合計。',
+    hint: '楽天銀行の普通預金残高。',
+  },
+  {
+    key: 'smbc_bank',
+    label: '現預金（三井住友銀行）',
+    group: '金融資産',
+    unit: 'yen',
+    field: null,
+    snapshotField: 'cashAmount',
+    hint: '三井住友銀行（SMBC）の普通預金残高。',
   },
   {
     key: 'securities_cash',

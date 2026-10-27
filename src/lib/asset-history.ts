@@ -50,14 +50,25 @@ export function buildAssetSnapshots(
       updatedAt: sortedEntries[sortedEntries.length - 1]?.updatedAt ?? new Date().toISOString(),
     }
 
+    const fieldTotals = new Map<
+      string,
+      { total: number; unit: (typeof ASSET_ITEMS)[number]['unit'] }
+    >()
     for (const item of ASSET_ITEMS) {
       const value = effectiveValueForMonth(
         sortedEntries,
         item.key,
         yearMonth,
       )
-      const field = item.snapshotField as keyof AssetSnapshot
-      ;(snapshot as any)[field] = roundForField(item.key, value)
+      const current = fieldTotals.get(item.snapshotField)
+      fieldTotals.set(item.snapshotField, {
+        total: (current?.total ?? 0) + value,
+        unit: item.unit,
+      })
+    }
+    for (const [field, { total, unit }] of fieldTotals) {
+      ;(snapshot as any)[field] =
+        unit === 'yen' ? Math.round(safe(total)) : safe(total)
     }
 
     // withdrawn shares derived from holding withdrawals up to this month
@@ -81,13 +92,6 @@ export function buildAssetSnapshots(
 
     return snapshot
   })
-}
-
-function roundForField(itemKey: string, value: number): number {
-  const item = ASSET_ITEMS.find((entry) => entry.key === itemKey)
-  if (!item) return value
-  if (item.unit === 'yen') return Math.round(safe(value))
-  return safe(value)
 }
 
 function effectiveValueForMonth(
