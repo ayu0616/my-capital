@@ -121,7 +121,19 @@ VALUES
 
 -- Backfill per-item entries from monthly snapshots.
 INSERT OR IGNORE INTO asset_entries (id, item_key, valued_at, value, notes, created_at, updated_at)
-SELECT 'mig-' || id || '-bank_cash', 'bank_cash', year_month || '-01', cash_amount, notes, created_at, updated_at FROM asset_snapshots;
+SELECT 'mig-' || id || '-rakuten_bank', 'rakuten_bank', year_month || '-01', CAST(cash_amount * 0.7 AS INTEGER), notes, created_at, updated_at FROM asset_snapshots
+WHERE NOT EXISTS (
+  SELECT 1 FROM asset_entries
+  WHERE item_key IN ('rakuten_bank', 'bank_cash')
+    AND valued_at = asset_snapshots.year_month || '-01'
+);
+INSERT OR IGNORE INTO asset_entries (id, item_key, valued_at, value, notes, created_at, updated_at)
+SELECT 'mig-' || id || '-smbc_bank', 'smbc_bank', year_month || '-01', cash_amount - CAST(cash_amount * 0.7 AS INTEGER), NULL, created_at, updated_at FROM asset_snapshots
+WHERE NOT EXISTS (
+  SELECT 1 FROM asset_entries
+  WHERE item_key IN ('smbc_bank', 'bank_cash')
+    AND valued_at = asset_snapshots.year_month || '-01'
+);
 INSERT OR IGNORE INTO asset_entries (id, item_key, valued_at, value, notes, created_at, updated_at)
 SELECT 'mig-' || id || '-securities_cash', 'securities_cash', year_month || '-01', securities_cash_amount, NULL, created_at, updated_at FROM asset_snapshots;
 INSERT OR IGNORE INTO asset_entries (id, item_key, valued_at, value, notes, created_at, updated_at)

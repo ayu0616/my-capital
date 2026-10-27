@@ -311,7 +311,7 @@ export const assetEntries = sqliteTable(
   'asset_entries',
   {
     id: text('id').primaryKey(),
-    itemKey: text('item_key').notNull(), // bank_cash, securities_cash, mutual_funds, ...
+    itemKey: text('item_key').notNull(), // rakuten_bank, smbc_bank, securities_cash, mutual_funds, ...
     valuedAt: text('valued_at').notNull(), // YYYY-MM-DD
     value: real('value').notNull().default(0),
     notes: text('notes'),

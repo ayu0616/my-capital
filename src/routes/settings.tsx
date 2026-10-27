@@ -704,7 +704,7 @@ function AccountsCard({
           })}
         </ul>
         <p className="mt-4 border-t border-line/70 pt-3 text-[0.56rem] leading-relaxed text-muted">
-          残高は月次スナップショット、持株会の株数は「持株会の引出し」、楽天証券の銘柄はCSV取り込みで管理します。
+          残高は「資産の記録」で楽天銀行・三井住友銀行ごとに入力します。持株会の株数は「持株会の引出し」、楽天証券の銘柄はCSV取り込みで管理します。
         </p>
       </CardContent>
     </Card>
