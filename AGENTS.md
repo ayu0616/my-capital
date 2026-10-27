@@ -26,7 +26,8 @@
 - Shareholder-benefit goals live in `stock_goals`; they are targets, not assets, so never add them to net worth. CSV import updates matching goals by stock code when `auto_update_from_csv` is enabled. Use `buildStockGoalSummaries` instead of re-deriving pace.
 - JIS&T lives in singleton `retirement_accounts` plus `retirement_allocations`; its current balance is also stored per month in `asset_snapshots.pension_balance`. Saving the account updates the latest snapshot’s pension balance, so net worth and the trend stay aligned. Use `buildRetirementSummary` for gain, monthly contribution, and allocation totals.
 - Snapshot queries are ascending by `yearMonth`; the latest is `.at(-1)`. Yen totals are integer columns; prices/shares are `real`. Dates are `YYYY-MM-DD`, months `YYYY-MM`.
-- Scholarships and loans live in `loans` plus repayment history in `loan_payments`. Their outstanding total is mirrored to `asset_entries` key `loan_balance` and deducted from every snapshot total/net worth; keep the aggregate update in `actions.ts` when loan or payment rows change.
+- Scholarships and loans live in `loans` plus repayment history in `loan_payments`. Their outstanding total is mirrored to `asset_entries` key `loan_balance` and deducted from every snapshot total/net worth; keep the aggregate update (`syncLoanBalanceEntry` in `db.server.ts`) when loan or payment rows change.
+- `/api/balances` records asset entries and loan balances for external batches. It authenticates with API keys from `api_keys` (Bearer or `X-API-Key`), not the session cookie. Plaintext keys are shown only once; store SHA-256 hashes. Keep `public/openapi.json` and `src/lib/asset-items.ts` in sync when supported asset keys change.
 - Net worth includes gear resale and holding carryover; carryover is also a separate portfolio slice. For Fujitsu concentration use `buildCurrentPortfolio`; its ratio is against total assets including cash, carryover, and gear, before liabilities.
 - Single-user app; do not add user tables/tenancy without an explicit request.
 
@@ -37,7 +38,7 @@
 - Passkeys are WebAuthn credentials stored in `auth_passkeys`; challenges live in `auth_challenges`, and the session signing secret in `auth_config`. Auth server functions are in `src/server/auth.ts` with crypto/WebAuthn work in `auth.server.ts`. `isAuthRequired()` and `isAuthenticated()` are async and may query D1.
 - The root auth guard protects pages, not API routes. New API routes must check `isAuthenticated()` themselves; see the image/upload routes.
 - Local secrets go in `.dev.vars` (copy `.dev.vars.example`). It is read at startup, so restart `npm run dev` after changing `APP_PASSCODE`; unset it (or remove `.dev.vars`) to return to open mode when no passkeys are registered.
-- Secrets are not in `wrangler types`; declare them in `src/env.d.ts` (see `APP_PASSCODE`).
+- Secrets are not in `wrangler types`; declare them in `src/env.d.ts` (see `APP_PASSCODE`). API keys live in D1 and are managed from settings, not in secrets.
 - Gear uploads accept JPEG/PNG/WebP up to 8 MB and store keys under `gear/YYYY-MM-DD/`; the image route only serves `gear/` keys.
 - `wrangler.jsonc` still has the all-zero `database_id`; local dev works, but remote commands/deploy need the real ID. First deploy: `npx wrangler d1 create my-capital-db`, paste the printed ID, `npx wrangler r2 bucket create my-capital-gear`, `npm run db:migrate:remote`, optionally `npx wrangler secret put APP_PASSCODE`, then `npm run deploy`.
 

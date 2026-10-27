@@ -22,6 +22,7 @@ import {
   readHolding,
   readSettings,
   syncFujitsuStockPrice,
+  syncLoanBalanceEntry,
 } from './db.server'
 import { removeImage } from './storage.server'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
@@ -263,38 +264,6 @@ export const refreshHoldingStockPrice = createServerFn({ method: 'POST' })
 /* -------------------------------------------------------------------------- */
 /*  Scholarships & loans                                                      */
 /* -------------------------------------------------------------------------- */
-
-async function syncLoanBalanceEntry(valuedAt: string) {
-  const db = getDb()
-  const rows = await db
-    .select({ currentBalance: loans.currentBalance })
-    .from(loans)
-  const total = rows.reduce(
-    (sum, loan) => sum + Math.max(0, Number(loan.currentBalance) || 0),
-    0,
-  )
-  const now = new Date().toISOString()
-  await db
-    .insert(assetEntries)
-    .values({
-      id: newId(),
-      itemKey: 'loan_balance',
-      valuedAt,
-      value: total,
-      notes: '奨学金・ローンの残高',
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [assetEntries.itemKey, assetEntries.valuedAt],
-      set: {
-        value: total,
-        notes: '奨学金・ローンの残高',
-        updatedAt: now,
-      },
-    })
-  return total
-}
 
 const loanInput = z.object({
   id: z.string().min(1).optional(),
