@@ -9,6 +9,7 @@
 - **持株会**: 会社ページの記録日・持分株数・平均取得単価・繰越金、富士通株の保有数と目標株数までの進捗、SMBC日興証券への引出し履歴、奨励金込みの実質単価、到達後のリバランス提案。富士通の株価はGoogle Financeから日次で自動取得し、設定画面から再取得できます
 - **奨学金・ローン**: 借入先・借入額・現在の残高・金利・月額返済を記録し、返済履歴から残高を更新。残高は純資産から差し引きます
 - **口座管理**: 楽天証券・SMBC日興証券・楽天銀行・SMBCの役割を整理し、持株会の引出し先やCSV取り込み先を明確化
+- **残高連携API**: 発行したAPIキーで、外部バッチから銀行・証券・奨学金・ローンの残高を日次・週次・月次で記録
 - **実物資産**: カメラ機材の購入額・買取目安・残存率、R2 に保存する機材写真
 - **自己投資**: 資格・講座・書籍への投資履歴と、キャリアイベントによる ROI
 - **毎月の記録**: 12か月の資産推移、配分のドーナツチャート、スナップショットの作成・編集・削除
@@ -48,6 +49,34 @@ npm run dev          # http://localhost:3000
 - 富士通（6702）はロマン枠として分離し、それ以外の個別株は「個別株」に集計します。
 - 動作確認用に `seeds/rakuten-holdings-sample.csv` を同梱しています。
 
+### 残高連携API
+
+外部のバッチから資産・負債の残高を記録できます。設定 → APIキーでキーを発行してください。キーは発行時に一度だけ表示されます。
+
+```bash
+curl -X POST http://localhost:3000/api/balances \
+  -H 'Authorization: Bearer <APIキー>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "asOfDate": "2026-10-27",
+    "assets": {
+      "rakuten_bank": 1234567,
+      "smbc_bank": 456789
+    },
+    "loans": [
+      { "id": "loan-scholarship-1", "balance": 1440000 },
+      { "name": "α7C IIのローン", "balance": 120000 }
+    ],
+    "note": "日次バッチ"
+  }'
+```
+
+- `Authorization: Bearer <APIキー>` または `X-API-Key: <APIキー>` で認証します。セッションCookieは使いません。
+- `asOfDate` を省略すると日本時間の今日になります。同じ項目・同じ基準日の値は上書きされます。
+- `assets` は `rakuten_bank`・`smbc_bank`・`securities_cash`・`mutual_funds`・`individual_stocks`・`other_securities`・`nisa_principal`・`holding_carryover` を指定できます。
+- `loans` は `id` または `name` でローンを指定します。`name` に一致するローンがない場合は、その名前で新規作成します。残高の合計は `loan_balance` として資産台帳に記録され、純資産から差し引かれます。
+- OpenAPIの仕様は `/openapi.json` で公開しています。APIキーが1つもない場合、残高連携APIは利用できません。
+
 ### パスコード / パスキー認証（任意）
 
 公開時は `APP_PASSCODE` を設定するか、設定画面からパスキーを登録すると、ログイン画面なしでは台帳を開けなくなります。
@@ -68,6 +97,7 @@ npx wrangler secret put APP_PASSCODE
 - パスコードもパスキーも使えなくなった場合は、`npx wrangler secret put APP_PASSCODE` で新しいパスコードを設定してログインし、設定画面からパスキーを整理してください。
 - どちらも設定していない場合は認証が無効になり、これまでどおりオープンアクセスで動作します。
 - 画像配信 API とアップロード API も、認証が有効なときは同じセッションを要求します。
+- 残高連携APIはセッションではなく、設定画面で発行したAPIキーで認証します。
 
 ## Cloudflare へのデプロイ
 
@@ -106,7 +136,7 @@ src/
 │   ├── self-investment.tsx  # 自己投資とキャリア ROI
 │   ├── settings.tsx         # プロフィール・目標・持株会・JIS&T・パスキー設定
 │   ├── login.tsx            # パスコード / パスキーログイン
-│   └── api/                 # R2 アップロード / 画像配信
+│   └── api/                 # R2 アップロード / 画像配信 / 残高連携
 ├── components/              # UI、ダッシュボードカード、各ダイアログ
 ├── components/loans/        # 奨学金・ローンのカード・入力ダイアログ
 ├── components/stocks/       # 優待株カード・目標ダイアログ
@@ -154,6 +184,7 @@ D1 のテーブルはすべて単一ユーザー前提のシングルトン、�
 - `auth_passkeys` — パスキーの資格情報（credential ID・公開鍵・カウンタ・名前）
 - `auth_config` — セッション署名に使うサーバー側の秘密
 - `auth_challenges` — WebAuthn の登録・ログイン用チャレンジ（検証時に消費）
+- `api_keys` — 残高連携APIのキー（SHA-256ハッシュ・表示用の接頭辞・最終使用日）
 - `holding_stock_status` — 持株会の拠出額・奨励金率・保有株数・記録日・平均取得単価・繰越金
 - `holding_withdrawals` — 持株会から証券口座へ引き出した日付・株数・取得単価・株価・引出し先
 - `stock_goals` — 優待株の目標株数・期限・現在株数・最小購入単位・月予算・優待内容

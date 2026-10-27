@@ -7,6 +7,7 @@ import {
   DEFAULT_SETTINGS,
 } from '../db/defaults'
 import {
+  apiKeys,
   appSettings,
   assetEntries,
   authChallenges,
@@ -138,6 +139,84 @@ export async function readLoanPayments() {
     .select()
     .from(loanPayments)
     .orderBy(desc(loanPayments.paidAt), desc(loanPayments.createdAt))
+}
+
+export async function syncLoanBalanceEntry(
+  valuedAt: string,
+  notes = '奨学金・ローンの残高',
+) {
+  const db = getDb()
+  const rows = await db
+    .select({ currentBalance: loans.currentBalance })
+    .from(loans)
+  const total = rows.reduce(
+    (sum, loan) => sum + Math.max(0, Number(loan.currentBalance) || 0),
+    0,
+  )
+  const now = new Date().toISOString()
+  await db
+    .insert(assetEntries)
+    .values({
+      id: crypto.randomUUID(),
+      itemKey: 'loan_balance',
+      valuedAt,
+      value: total,
+      notes,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [assetEntries.itemKey, assetEntries.valuedAt],
+      set: {
+        value: total,
+        notes,
+        updatedAt: now,
+      },
+    })
+  return total
+}
+
+export async function readApiKeySummaries() {
+  return getDb()
+    .select({
+      id: apiKeys.id,
+      name: apiKeys.name,
+      keyPrefix: apiKeys.keyPrefix,
+      createdAt: apiKeys.createdAt,
+      lastUsedAt: apiKeys.lastUsedAt,
+    })
+    .from(apiKeys)
+    .orderBy(desc(apiKeys.createdAt))
+}
+
+export async function readApiKeyByHash(keyHash: string) {
+  const [row] = await getDb()
+    .select()
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, keyHash))
+    .limit(1)
+  return row ?? null
+}
+
+export async function insertApiKey(input: {
+  id: string
+  name: string
+  keyHash: string
+  keyPrefix: string
+  createdAt: string
+}) {
+  await getDb().insert(apiKeys).values(input)
+}
+
+export async function deleteApiKeyById(id: string) {
+  await getDb().delete(apiKeys).where(eq(apiKeys.id, id))
+}
+
+export async function touchApiKey(id: string) {
+  await getDb()
+    .update(apiKeys)
+    .set({ lastUsedAt: new Date().toISOString() })
+    .where(eq(apiKeys.id, id))
 }
 
 export async function syncFujitsuStockPrice(options: { force?: boolean } = {}) {
@@ -515,6 +594,7 @@ export async function fetchSettingsData() {
     retirement,
     retirementAllocationRows,
     passkeys,
+    apiKeyRows,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -532,6 +612,7 @@ export async function fetchSettingsData() {
     readRetirementAccount(),
     readRetirementAllocations(),
     readPasskeySummaries(),
+    readApiKeySummaries(),
   ])
   const snapshotCount = buildAssetSnapshots(entries, withdrawals)
   return {
@@ -542,6 +623,7 @@ export async function fetchSettingsData() {
     retirement,
     retirementAllocations: retirementAllocationRows,
     passkeys,
+    apiKeys: apiKeyRows,
     counts: {
       snapshots: snapshotCount.length,
       gears: gearCount.length,

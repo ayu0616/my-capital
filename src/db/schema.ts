@@ -79,6 +79,19 @@ export const authChallenges = sqliteTable(
   (table) => [index('auth_challenges_expires_idx').on(table.expiresAt)],
 )
 
+export const apiKeys = sqliteTable(
+  'api_keys',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull().default(''),
+    keyHash: text('key_hash').notNull().unique(),
+    keyPrefix: text('key_prefix').notNull().default(''),
+    createdAt: text('created_at').notNull(),
+    lastUsedAt: text('last_used_at'),
+  },
+  (table) => [index('api_keys_created_idx').on(table.createdAt)],
+)
+
 /* -------------------------------------------------------------------------- */
 /*  Holding association (Fujitsu / employee stock purchase plan)              */
 /* -------------------------------------------------------------------------- */
@@ -426,6 +439,7 @@ export const careerEvents = sqliteTable('career_events', {
 export type AppSettings = typeof appSettings.$inferSelect
 export type AuthPasskey = typeof authPasskeys.$inferSelect
 export type AuthChallenge = typeof authChallenges.$inferSelect
+export type ApiKey = typeof apiKeys.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
 export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
 export type StockGoal = typeof stockGoals.$inferSelect

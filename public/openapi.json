@@ -1,0 +1,312 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Asset & Life Studio Balance API",
+    "version": "1.0.0",
+    "description": "資産・負債の残高を外部バッチから記録するAPIです。設定画面で発行したAPIキーが必要です。"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "apiKeyHeader": []
+    }
+  ],
+  "paths": {
+    "/api/balances": {
+      "post": {
+        "tags": ["Balances"],
+        "summary": "資産・負債の残高を記録する",
+        "description": "指定した基準日の残高を記録します。同じ項目・同じ基準日の値は上書きされます。`asOfDate` を省略すると日本時間の今日を使います。`loans` は `id` または `name` で既存のローンを更新します。`name` に一致するローンがない場合は、その名前でローンを作成します。",
+        "operationId": "recordBalances",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BalanceBatch"
+              },
+              "examples": {
+                "banksAndLoans": {
+                  "summary": "銀行残高とローンの残高を記録",
+                  "value": {
+                    "asOfDate": "2026-10-27",
+                    "assets": {
+                      "rakuten_bank": 1234567,
+                      "smbc_bank": 456789
+                    },
+                    "loans": [
+                      {
+                        "id": "loan-scholarship-1",
+                        "balance": 1440000
+                      },
+                      {
+                        "name": "α7C IIのローン",
+                        "balance": 120000
+                      }
+                    ],
+                    "note": "日次バッチ"
+                  }
+                },
+                "assetsOnly": {
+                  "summary": "銀行残高だけを日次で記録",
+                  "value": {
+                    "assets": {
+                      "rakuten_bank": 1234567,
+                      "smbc_bank": 456789
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "記録した内容",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceBatchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入力内容が正しくない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "APIキーがない、または無効",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "指定したローンのIDが見つからない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "設定画面で発行したAPIキーを指定します。"
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "設定画面で発行したAPIキーを指定します。"
+      }
+    },
+    "schemas": {
+      "BalanceBatch": {
+        "type": "object",
+        "properties": {
+          "asOfDate": {
+            "type": "string",
+            "format": "date",
+            "description": "残高の基準日（YYYY-MM-DD）。省略時は日本時間の今日。",
+            "example": "2026-10-27"
+          },
+          "assets": {
+            "type": "object",
+            "description": "資産項目と金額（円）。指定した項目だけを更新します。",
+            "properties": {
+              "rakuten_bank": {
+                "type": "number",
+                "minimum": 0,
+                "description": "楽天銀行の現預金"
+              },
+              "smbc_bank": {
+                "type": "number",
+                "minimum": 0,
+                "description": "三井住友銀行の現預金"
+              },
+              "securities_cash": {
+                "type": "number",
+                "minimum": 0,
+                "description": "楽天証券の預り金"
+              },
+              "mutual_funds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "投資信託の評価額"
+              },
+              "individual_stocks": {
+                "type": "number",
+                "minimum": 0,
+                "description": "個別株の評価額"
+              },
+              "other_securities": {
+                "type": "number",
+                "minimum": 0,
+                "description": "その他の証券の評価額"
+              },
+              "nisa_principal": {
+                "type": "number",
+                "minimum": 0,
+                "description": "NISA累計元本"
+              },
+              "holding_carryover": {
+                "type": "number",
+                "minimum": 0,
+                "description": "持株会の繰越金"
+              }
+            },
+            "additionalProperties": false
+          },
+          "loans": {
+            "type": "array",
+            "maxItems": 100,
+            "description": "奨学金・ローンの残高。id または name のどちらかを指定します。",
+            "items": {
+              "$ref": "#/components/schemas/LoanBalance"
+            }
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "台帳に残すメモ。"
+          }
+        },
+        "anyOf": [
+          {
+            "required": ["assets"]
+          },
+          {
+            "required": ["loans"]
+          }
+        ]
+      },
+      "LoanBalance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "ローンのID。既存のローンを更新します。"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "ローンの名前。一致するローンを更新し、なければ作成します。"
+          },
+          "balance": {
+            "type": "number",
+            "minimum": 0,
+            "description": "現在の残高（円）。"
+          }
+        },
+        "required": ["balance"],
+        "anyOf": [
+          {
+            "required": ["id"]
+          },
+          {
+            "required": ["name"]
+          }
+        ]
+      },
+      "BalanceBatchResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [true]
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "assets": {
+            "type": "object",
+            "properties": {
+              "saved": {
+                "type": "integer"
+              }
+            },
+            "required": ["saved"]
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "balance": {
+                  "type": "number"
+                },
+                "created": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["id", "name", "balance", "created"]
+            }
+          },
+          "loanBalanceTotal": {
+            "type": "number",
+            "nullable": true,
+            "description": "ローンの残高合計。ローンを更新したときだけ数値になります。"
+          }
+        },
+        "required": ["ok", "asOfDate", "assets", "loans"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": ["error"]
+      }
+    }
+  }
+}

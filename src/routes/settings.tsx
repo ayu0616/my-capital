@@ -28,6 +28,7 @@ import {
 import { Badge, Field, FieldGrid, Input, MoneyInput } from '../components/ui/form'
 import { PageHeader } from '../components/ui/page'
 import { WithdrawalCard } from '../components/holding/withdrawal-card'
+import { ApiKeysCard } from '../components/settings/api-keys-card'
 import { PasskeyCard } from '../components/settings/passkey-card'
 import { RetirementCard } from '../components/settings/retirement-card'
 import type {
@@ -72,6 +73,7 @@ function SettingsPage() {
     authRequired,
     passcodeEnabled,
     passkeys,
+    apiKeys,
   } = Route.useLoaderData()
   const router = useRouter()
 
@@ -118,6 +120,11 @@ function SettingsPage() {
             window.location.assign('/login')
           }}
           className="lg:col-span-5"
+        />
+        <ApiKeysCard
+          apiKeys={apiKeys}
+          onChanged={() => router.invalidate()}
+          className="lg:col-span-7"
         />
         <PasskeyCard
           passkeys={passkeys}
