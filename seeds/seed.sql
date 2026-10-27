@@ -38,6 +38,18 @@ VALUES
   ('alloc-domestic-bond', 'default', '国内債券', 10, 40),
   ('alloc-cash', 'default', '現金・預金', 5, 50);
 
+INSERT OR REPLACE INTO loans
+  (id, name, lender, kind, principal_amount, current_balance, interest_rate, monthly_payment, borrowed_at, repayment_end_date, notes, created_at, updated_at)
+VALUES
+  ('loan-scholarship-1', '第一種奨学金', '日本学生支援機構', 'scholarship', 2880000, 1440000, 0, 15000, '2019-04-01', '2031-03-31', '在学中に借りた第一種奨学金。毎月の返済額は目安。', '2026-10-01T00:00:00.000Z', '2026-10-21T00:00:00.000Z');
+
+DELETE FROM loan_payments;
+
+INSERT OR REPLACE INTO loan_payments
+  (id, loan_id, paid_at, amount, principal_amount, interest_amount, balance_after, notes, created_at, updated_at)
+VALUES
+  ('loan-payment-2026-10', 'loan-scholarship-1', '2026-10-27', 15000, 15000, 0, 1440000, '2026年10月分の返済。', '2026-10-27T00:00:00.000Z', '2026-10-27T00:00:00.000Z');
+
 INSERT OR REPLACE INTO financial_accounts
   (id, name, institution, kind, role, notes, sort_order, created_at, updated_at)
 VALUES
@@ -158,3 +170,6 @@ INSERT OR IGNORE INTO asset_entries (id, item_key, valued_at, value, notes, crea
 SELECT 'mig-' || id || '-fujitsu_price', 'fujitsu_price', year_month || '-01', fujitsu_current_price, NULL, created_at, updated_at FROM asset_snapshots;
 INSERT OR IGNORE INTO asset_entries (id, item_key, valued_at, value, notes, created_at, updated_at)
 SELECT 'mig-' || id || '-gear_resale', 'gear_resale', year_month || '-01', gear_resale_amount, NULL, created_at, updated_at FROM asset_snapshots;
+
+INSERT OR REPLACE INTO asset_entries (id, item_key, valued_at, value, notes, created_at, updated_at)
+VALUES ('loan-balance-2026-10', 'loan_balance', '2026-10-21', 1440000, '奨学金・ローンの残高', '2026-10-21T00:00:00.000Z', '2026-10-21T00:00:00.000Z');

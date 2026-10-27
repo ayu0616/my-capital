@@ -724,6 +724,7 @@ function DataCard({
     gears: number
     investments: number
     stockGoals: number
+    loans: number
   }
   className?: string
 }) {
@@ -740,6 +741,7 @@ function DataCard({
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             { label: 'スナップショット', value: counts.snapshots, to: '/assets' as const },
+            { label: '奨学金・ローン', value: counts.loans, to: '/loans' as const },
             { label: '優待株', value: counts.stockGoals, to: '/stock-goals' as const },
             { label: '機材', value: counts.gears, to: '/gear' as const },
             {
@@ -824,6 +826,11 @@ function AboutCard({
               icon: Wallet,
               title: '金融資産',
               description: '現預金・オルカン・S&P 500・NISAの進捗',
+            },
+            {
+              icon: Landmark,
+              title: '奨学金・ローン',
+              description: '借入残高、返済履歴、完済予定。残高は純資産から控除',
             },
             {
               icon: Landmark,

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as GearRouteImport } from './routes/gear'
+import { Route as LoansRouteImport } from './routes/loans'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SelfInvestmentRouteImport } from './routes/self-investment'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -32,6 +33,11 @@ const AssetsRoute = AssetsRouteImport.update({
 const GearRoute = GearRouteImport.update({
   id: '/gear',
   path: '/gear',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoansRoute = LoansRouteImport.update({
+  id: '/loans',
+  path: '/loans',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/gear': typeof GearRoute
+  '/loans': typeof LoansRoute
   '/login': typeof LoginRoute
   '/self-investment': typeof SelfInvestmentRoute
   '/settings': typeof SettingsRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/gear': typeof GearRoute
+  '/loans': typeof LoansRoute
   '/login': typeof LoginRoute
   '/self-investment': typeof SelfInvestmentRoute
   '/settings': typeof SettingsRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/gear': typeof GearRoute
+  '/loans': typeof LoansRoute
   '/login': typeof LoginRoute
   '/self-investment': typeof SelfInvestmentRoute
   '/settings': typeof SettingsRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets'
     | '/gear'
+    | '/loans'
     | '/login'
     | '/self-investment'
     | '/settings'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets'
     | '/gear'
+    | '/loans'
     | '/login'
     | '/self-investment'
     | '/settings'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets'
     | '/gear'
+    | '/loans'
     | '/login'
     | '/self-investment'
     | '/settings'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssetsRoute: typeof AssetsRoute
   GearRoute: typeof GearRoute
+  LoansRoute: typeof LoansRoute
   LoginRoute: typeof LoginRoute
   SelfInvestmentRoute: typeof SelfInvestmentRoute
   SettingsRoute: typeof SettingsRoute
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/gear'
       fullPath: '/gear'
       preLoaderRoute: typeof GearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/loans': {
+      id: '/loans'
+      path: '/loans'
+      fullPath: '/loans'
+      preLoaderRoute: typeof LoansRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssetsRoute: AssetsRoute,
   GearRoute: GearRoute,
+  LoansRoute: LoansRoute,
   LoginRoute: LoginRoute,
   SelfInvestmentRoute: SelfInvestmentRoute,
   SettingsRoute: SettingsRoute,

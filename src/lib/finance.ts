@@ -5,6 +5,7 @@ import type {
   CareerEvent,
   HoldingStockStatus,
   HoldingWithdrawal,
+  Loan,
   RetirementAccount,
   RetirementAllocation,
   SelfInvestment,
@@ -57,12 +58,22 @@ export const GEAR_CATEGORY_LABELS: Record<string, string> = {
   accessory: 'アクセサリー',
 }
 
+export const LOAN_KIND_LABELS: Record<string, string> = {
+  scholarship: '奨学金',
+  loan: 'ローン',
+  other: 'その他',
+}
+
 export function categoryLabel(category: string): string {
   return INVESTMENT_CATEGORY_LABELS[category] ?? 'その他'
 }
 
 export function gearCategoryLabel(category: string): string {
   return GEAR_CATEGORY_LABELS[category] ?? 'アクセサリー'
+}
+
+export function loanKindLabel(kind: string): string {
+  return LOAN_KIND_LABELS[kind] ?? 'その他'
 }
 
 const safe = (value: number | null | undefined): number =>
@@ -86,12 +97,17 @@ export function snapshotTotal(snapshot: AssetSnapshot): number {
     safe(snapshot.pensionBalance) +
     fujitsuShares * safe(snapshot.fujitsuCurrentPrice) +
     safe(snapshot.holdingCarryoverAmount) +
-    safe(snapshot.gearResaleAmount)
+    safe(snapshot.gearResaleAmount) -
+    safe(snapshot.loanBalance)
   )
 }
 
 export function snapshotFinancialTotal(snapshot: AssetSnapshot): number {
-  return snapshotTotal(snapshot) - safe(snapshot.gearResaleAmount)
+  return (
+    snapshotTotal(snapshot) -
+    safe(snapshot.gearResaleAmount) +
+    safe(snapshot.loanBalance)
+  )
 }
 
 export interface MonthlyPoint {
@@ -158,6 +174,8 @@ export interface PortfolioSlice {
 
 export interface Portfolio {
   total: number
+  assetTotal: number
+  liabilityTotal: number
   financialTotal: number
   gearValue: number
   slices: PortfolioSlice[]
@@ -180,6 +198,7 @@ function buildPortfolio(params: {
   pension: number
   carryover: number
   gear: number
+  liabilities: number
   threshold: number
 }): Portfolio {
   const fujitsuValue = params.fujitsuShares * params.fujitsuPrice
@@ -194,8 +213,10 @@ function buildPortfolio(params: {
     cash: safe(params.cash),
     gear: safe(params.gear),
   }
-  const total = Object.values(amounts).reduce((sum, value) => sum + value, 0)
-  const ratioOf = (value: number) => (total > 0 ? value / total : 0)
+  const assetTotal = Object.values(amounts).reduce((sum, value) => sum + value, 0)
+  const liabilityTotal = safe(params.liabilities)
+  const total = assetTotal - liabilityTotal
+  const ratioOf = (value: number) => (assetTotal > 0 ? value / assetTotal : 0)
   const slices: PortfolioSlice[] = [
     { key: 'mutualFunds', label: '投資信託', amount: amounts.mutualFunds, ratio: ratioOf(amounts.mutualFunds), color: ALLOCATION_COLORS.mutualFunds },
     { key: 'individualStocks', label: '個別株（富士通ロマン枠を除く）', amount: amounts.individualStocks, ratio: ratioOf(amounts.individualStocks), color: ALLOCATION_COLORS.individualStocks },
@@ -218,6 +239,8 @@ function buildPortfolio(params: {
     amounts.cash
   return {
     total,
+    assetTotal,
+    liabilityTotal,
     financialTotal,
     gearValue: amounts.gear,
     slices,
@@ -252,6 +275,7 @@ export function buildCurrentPortfolio(
     pension: safe(latest?.pensionBalance) || safe(pensionBalance),
     carryover: safe(holding.carryoverAmount),
     gear: gearValue,
+    liabilities: safe(latest?.loanBalance),
     threshold,
   })
 }
@@ -274,6 +298,7 @@ export function buildSnapshotPortfolio(
     pension: safe(snapshot.pensionBalance),
     carryover: safe(snapshot.holdingCarryoverAmount),
     gear: safe(snapshot.gearResaleAmount),
+    liabilities: safe(snapshot.loanBalance),
     threshold,
   })
 }
@@ -609,6 +634,139 @@ export function buildStockGoalSummaries(
       if (a.isAchieved !== b.isAchieved) return a.isAchieved ? 1 : -1
       return a.targetDate.getTime() - b.targetDate.getTime()
     })
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Scholarships & loans                                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface LoanSummary {
+  id: string
+  name: string
+  lender: string
+  kind: string
+  kindLabel: string
+  principalAmount: number
+  currentBalance: number
+  repaidAmount: number
+  progress: number
+  interestRate: number
+  monthlyPayment: number
+  borrowedAt: string
+  repaymentEndDate: string
+  monthsRemaining: number | null
+  remainingPayments: number | null
+  projectedPayoffDate: Date | null
+  projectedPayoffLabel: string | null
+  isPaidOff: boolean
+  notes: string | null
+}
+
+export function buildLoanSummary(
+  loan: Loan,
+  today = todayDateOnly(),
+): LoanSummary {
+  const principalAmount = Math.max(0, safe(loan.principalAmount))
+  const currentBalance = Math.max(0, safe(loan.currentBalance))
+  const monthlyPayment = Math.max(0, safe(loan.monthlyPayment))
+  const repaidAmount = Math.max(0, principalAmount - currentBalance)
+  const isPaidOff = currentBalance <= 0
+  const remainingPayments =
+    isPaidOff
+      ? 0
+      : monthlyPayment > 0
+        ? Math.ceil(currentBalance / monthlyPayment)
+        : null
+  const projectedPayoffDate =
+    remainingPayments == null
+      ? null
+      : addMonths(today, remainingPayments)
+  const hasEndDate = /^\d{4}-\d{2}-\d{2}$/.test(loan.repaymentEndDate)
+  const monthsRemaining = hasEndDate
+    ? monthsBetween(today, parseDateOnly(loan.repaymentEndDate))
+    : null
+  return {
+    id: loan.id,
+    name: loan.name,
+    lender: loan.lender,
+    kind: loan.kind,
+    kindLabel: loanKindLabel(loan.kind),
+    principalAmount,
+    currentBalance,
+    repaidAmount,
+    progress:
+      principalAmount > 0
+        ? clamp(repaidAmount / principalAmount, 0, 1)
+        : isPaidOff
+          ? 1
+          : 0,
+    interestRate: Math.max(0, safe(loan.interestRate)),
+    monthlyPayment,
+    borrowedAt: loan.borrowedAt,
+    repaymentEndDate: loan.repaymentEndDate,
+    monthsRemaining,
+    remainingPayments,
+    projectedPayoffDate,
+    projectedPayoffLabel:
+      projectedPayoffDate && !isPaidOff
+        ? formatMonthEta(projectedPayoffDate)
+        : null,
+    isPaidOff,
+    notes: loan.notes,
+  }
+}
+
+export function buildLoanSummaries(
+  loans: Loan[],
+  today = todayDateOnly(),
+): LoanSummary[] {
+  return loans
+    .map((loan) => buildLoanSummary(loan, today))
+    .sort((a, b) => {
+      if (a.isPaidOff !== b.isPaidOff) return a.isPaidOff ? 1 : -1
+      return a.currentBalance - b.currentBalance
+    })
+}
+
+export interface LoanTotals {
+  count: number
+  activeCount: number
+  paidOffCount: number
+  principalTotal: number
+  balanceTotal: number
+  repaidTotal: number
+  monthlyPaymentTotal: number
+  progress: number
+}
+
+export function buildLoanTotals(summaries: LoanSummary[]): LoanTotals {
+  const principalTotal = summaries.reduce(
+    (sum, summary) => sum + summary.principalAmount,
+    0,
+  )
+  const balanceTotal = summaries.reduce(
+    (sum, summary) => sum + summary.currentBalance,
+    0,
+  )
+  const repaidTotal = summaries.reduce(
+    (sum, summary) => sum + summary.repaidAmount,
+    0,
+  )
+  return {
+    count: summaries.length,
+    activeCount: summaries.filter((summary) => !summary.isPaidOff).length,
+    paidOffCount: summaries.filter((summary) => summary.isPaidOff).length,
+    principalTotal,
+    balanceTotal,
+    repaidTotal,
+    monthlyPaymentTotal: summaries.reduce(
+      (sum, summary) =>
+        sum + (summary.isPaidOff ? 0 : summary.monthlyPayment),
+      0,
+    ),
+    progress:
+      principalTotal > 0 ? clamp(repaidTotal / principalTotal, 0, 1) : 0,
+  }
 }
 
 /* -------------------------------------------------------------------------- */

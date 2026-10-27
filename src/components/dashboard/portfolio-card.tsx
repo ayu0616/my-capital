@@ -17,7 +17,7 @@ export function PortfolioCard({
   className?: string
 }) {
   const visibleSlices = portfolio.slices.filter((slice) => slice.amount > 0)
-  const hasData = portfolio.total > 0
+  const hasData = portfolio.assetTotal > 0
   const over = portfolio.isFujitsuOverLimit
 
   return (
@@ -25,7 +25,7 @@ export function PortfolioCard({
       <CardHeader className="items-start">
         <div>
           <CardKicker>Allocation</CardKicker>
-          <CardTitle className="mt-1.5">純資産の内訳</CardTitle>
+          <CardTitle className="mt-1.5">資産の内訳</CardTitle>
         </div>
         <Badge
           variant={!hasData ? 'neutral' : over ? 'danger' : 'success'}
@@ -43,7 +43,7 @@ export function PortfolioCard({
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col pt-1">
-        {portfolio.total <= 0 ? (
+        {portfolio.assetTotal <= 0 ? (
           <EmptyState
             icon={PieIcon}
             title="内訳はまだありません"
@@ -80,7 +80,7 @@ export function PortfolioCard({
                   TOTAL
                 </p>
                 <p className="mt-1 font-display text-[1.25rem] font-semibold text-ink tabular">
-                  {formatCompactYen(portfolio.total)}
+                  {formatCompactYen(portfolio.assetTotal)}
                 </p>
                 <p className="mt-0.5 text-[0.55rem] text-muted">
                   {visibleSlices.length}項目
@@ -111,13 +111,23 @@ export function PortfolioCard({
               ))}
             </div>
 
-            <p className="mt-auto border-t border-line/70 pt-3 text-[0.58rem] leading-relaxed text-muted">
-              富士通（持株会＋引出し済み＋ロマン枠）比率{' '}
-              <span className={cn('font-semibold', over ? 'text-danger' : 'text-ink')}>
-                {formatPercent(portfolio.fujitsuRatio)}
-              </span>{' '}
-              / 警告ライン {formatPercent(portfolio.threshold, 0)}
-            </p>
+            <div className="mt-auto border-t border-line/70 pt-3 text-[0.58rem] leading-relaxed text-muted">
+              <p>
+                富士通（持株会＋引出し済み＋ロマン枠）比率{' '}
+                <span className={cn('font-semibold', over ? 'text-danger' : 'text-ink')}>
+                  {formatPercent(portfolio.fujitsuRatio)}
+                </span>{' '}
+                / 警告ライン {formatPercent(portfolio.threshold, 0)}
+              </p>
+              {portfolio.liabilityTotal > 0 ? (
+                <p className="mt-1">
+                  負債 {formatYen(portfolio.liabilityTotal)} を控除した純資産{' '}
+                  <span className="font-semibold text-ink tabular">
+                    {formatYen(portfolio.total)}
+                  </span>
+                </p>
+              ) : null}
+            </div>
           </>
         )}
       </CardContent>
