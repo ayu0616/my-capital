@@ -16,6 +16,7 @@ import {
   securitiesHoldings,
   securitiesImportBatches,
   selfInvestments,
+  stepRecords,
   stockGoals,
 } from '../db/schema'
 import {
@@ -53,6 +54,7 @@ const settingsInput = z.object({
   nisaTargetAge: z.number().int().min(18).max(80),
   fujitsuAlertThreshold: z.number().min(0.01).max(1),
   gearFundTarget: z.number().int().min(1).max(100_000_000),
+  strideCm: z.number().min(30).max(200),
 })
 
 export const updateSettings = createServerFn({ method: 'POST' })
@@ -1213,5 +1215,48 @@ export const deleteCareerEvent = createServerFn({ method: 'POST' })
   .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     await getDb().delete(careerEvents).where(eq(careerEvents.id, data.id))
+    return { ok: true as const }
+  })
+
+/* -------------------------------------------------------------------------- */
+/*  Health capital (step records)                                             */
+/* -------------------------------------------------------------------------- */
+
+const stepRecordInput = z.object({
+  date: dateString,
+  steps: z.number().int().min(0).max(1_000_000),
+  place: z.string().trim().max(200).optional().nullable(),
+})
+
+export const saveStepRecord = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => stepRecordInput.parse(data))
+  .handler(async ({ data }) => {
+    const now = new Date().toISOString()
+    await getDb()
+      .insert(stepRecords)
+      .values({
+        id: newId(),
+        date: data.date,
+        steps: data.steps,
+        place: data.place ?? null,
+        source: 'manual',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [stepRecords.date],
+        set: {
+          steps: data.steps,
+          place: data.place ?? null,
+          updatedAt: now,
+        },
+      })
+    return { ok: true as const }
+  })
+
+export const deleteStepRecord = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    await getDb().delete(stepRecords).where(eq(stepRecords.id, data.id))
     return { ok: true as const }
   })
