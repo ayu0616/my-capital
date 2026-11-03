@@ -122,15 +122,24 @@ export function ApiKeysCard({
           <p className="text-xs leading-relaxed text-muted">
             外部のバッチから資産・負債の残高を記録するためのAPIキーです。キーは発行時に一度だけ表示されます。
           </p>
-          <a
-            href="/openapi.json"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-[0.68rem] font-semibold text-brand underline decoration-brand/25 underline-offset-2"
-          >
-            OpenAPI仕様を開く
-            <ExternalLink className="size-3" />
-          </a>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <a
+              href="/api-docs"
+              className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-brand underline decoration-brand/25 underline-offset-2"
+            >
+              APIドキュメントを開く
+              <ExternalLink className="size-3" />
+            </a>
+            <a
+              href="/openapi.json"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-muted underline decoration-line underline-offset-2"
+            >
+              OpenAPI仕様（JSON）
+              <ExternalLink className="size-3" />
+            </a>
+          </div>
 
           {apiKeys.length === 0 ? (
             <EmptyState

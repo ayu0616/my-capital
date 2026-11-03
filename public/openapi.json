@@ -23,7 +23,7 @@
       "post": {
         "tags": ["Balances"],
         "summary": "資産・負債の残高を記録する",
-        "description": "指定した基準日の残高を記録します。同じ項目・同じ基準日の値は上書きされます。`asOfDate` を省略すると日本時間の今日を使います。`loans` は `id` または `name` で既存のローンを更新します。`name` に一致するローンがない場合は、その名前でローンを作成します。",
+        "description": "指定した基準日の残高を記録します。同じ項目・同じ基準日の値は上書きされます。`asOfDate` を省略すると日本時間の今日を使います。`assets.pension` を指定すると、設定の確定拠出年金（JIS&T）の評価額と評価日も更新します。`loans` は `id` または `name` で既存のローンを更新します。`name` に一致するローンがない場合は、その名前でローンを作成します。",
         "operationId": "recordBalances",
         "requestBody": {
           "required": true,
@@ -61,6 +61,16 @@
                       "rakuten_bank": 1234567,
                       "smbc_bank": 456789
                     }
+                  }
+                },
+                "pension": {
+                  "summary": "確定拠出年金（JIS&T）の評価額を記録",
+                  "value": {
+                    "asOfDate": "2026-10-31",
+                    "assets": {
+                      "pension": 2450000
+                    },
+                    "note": "月末バッチ"
                   }
                 }
               }
@@ -169,6 +179,11 @@
                 "type": "number",
                 "minimum": 0,
                 "description": "その他の証券の評価額"
+              },
+              "pension": {
+                "type": "number",
+                "minimum": 0,
+                "description": "確定拠出年金（JIS&T）の評価額。記録すると設定の評価額と評価日も更新します。"
               },
               "nisa_principal": {
                 "type": "number",

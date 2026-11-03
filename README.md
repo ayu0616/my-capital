@@ -73,9 +73,9 @@ curl -X POST http://localhost:3000/api/balances \
 
 - `Authorization: Bearer <APIキー>` または `X-API-Key: <APIキー>` で認証します。セッションCookieは使いません。
 - `asOfDate` を省略すると日本時間の今日になります。同じ項目・同じ基準日の値は上書きされます。
-- `assets` は `rakuten_bank`・`smbc_bank`・`securities_cash`・`mutual_funds`・`individual_stocks`・`other_securities`・`nisa_principal`・`holding_carryover` を指定できます。
+- `assets` は `rakuten_bank`・`smbc_bank`・`securities_cash`・`mutual_funds`・`individual_stocks`・`other_securities`・`pension`・`nisa_principal`・`holding_carryover` を指定できます。`pension` は確定拠出年金（JIS&T）の評価額として記録し、設定の評価額と評価日も更新します。
 - `loans` は `id` または `name` でローンを指定します。`name` に一致するローンがない場合は、その名前で新規作成します。残高の合計は `loan_balance` として資産台帳に記録され、純資産から差し引かれます。
-- OpenAPIの仕様は `/openapi.json` で公開しています。APIキーが1つもない場合、残高連携APIは利用できません。
+- OpenAPIの仕様は `/openapi.json`、Swagger UI は `/api-docs` で公開しています。APIキーが1つもない場合、残高連携APIは利用できません。
 
 ### パスコード / パスキー認証（任意）
 
