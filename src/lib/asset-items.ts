@@ -1,4 +1,5 @@
 import type { AssetEntry } from '../db/schema'
+import { addMonths, parseDateOnly, todayDateOnly } from './format'
 
 export type AssetItemUnit = 'yen' | 'shares' | 'price'
 
@@ -187,4 +188,28 @@ export function effectiveValue(entries: AssetEntry[], itemKey: string, asOfDate:
     })
     .at(-1)
   return candidate?.value ?? 0
+}
+
+export interface AssetItemStatus {
+  entry: AssetEntry | null
+  /** 最新の記録日から暦月で1ヶ月以上経過している、またはまだ記録がない。 */
+  needsUpdate: boolean
+}
+
+/** 項目ごとの最新記録と、更新の催促が必要かどうか。 */
+export function buildAssetItemStatuses(
+  entries: AssetEntry[],
+  today = todayDateOnly(),
+): Record<string, AssetItemStatus> {
+  const statuses: Record<string, AssetItemStatus> = {}
+  for (const item of ASSET_ITEMS) {
+    const entry = findLatestEntry(entries, item.key)
+    statuses[item.key] = {
+      entry,
+      needsUpdate:
+        entry == null ||
+        today.getTime() >= addMonths(parseDateOnly(entry.valuedAt), 1).getTime(),
+    }
+  }
+  return statuses
 }
