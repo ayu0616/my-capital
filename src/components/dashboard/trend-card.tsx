@@ -11,7 +11,8 @@ import {
   YAxis,
 } from 'recharts'
 import { formatCompactYen, formatSignedPercent, formatYen } from '../../lib/format'
-import type { MonthlyPoint } from '../../lib/finance'
+import type { MonthlyPoint, TrendSeries } from '../../lib/finance'
+import { buildTrendSummary } from '../../lib/finance'
 import { cn } from '../../lib/utils'
 import { Card, CardContent, CardHeader, CardKicker, CardTitle } from '../ui/card'
 import { EmptyState } from '../ui/empty-state'
@@ -27,29 +28,38 @@ export function TrendCard({
   className?: string
 }) {
   const [range, setRange] = useState<'12m' | 'all'>('12m')
+  const [trendSeries, setTrendSeries] = useState<TrendSeries>('assets')
   const data = range === '12m' ? series.slice(-12) : series
-  const first = data[0]
-  const last = data[data.length - 1]
-  const growth = first && last ? last.total - first.total : 0
-  const growthRatio = first && first.total > 0 ? growth / first.total : null
-  const peak = data.length ? Math.max(...data.map((point) => point.total)) : 0
+  const summary = buildTrendSummary(data, trendSeries)
+  const valueKey = trendSeries === 'assets' ? 'assetTotal' : 'total'
 
   return (
     <Card className={cn('flex flex-col', className)}>
       <CardHeader className="items-start">
         <div>
-          <CardKicker>Net worth trend</CardKicker>
+          <CardKicker>Asset trend</CardKicker>
           <CardTitle className="mt-1.5">資産の推移</CardTitle>
         </div>
-        <Segmented
-          ariaLabel="表示期間"
-          value={range}
-          onChange={setRange}
-          options={[
-            { value: '12m', label: '12ヶ月' },
-            { value: 'all', label: '全期間' },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented
+            ariaLabel="表示する系列"
+            value={trendSeries}
+            onChange={setTrendSeries}
+            options={[
+              { value: 'assets', label: '資産総額' },
+              { value: 'netWorth', label: '純資産' },
+            ]}
+          />
+          <Segmented
+            ariaLabel="表示期間"
+            value={range}
+            onChange={setRange}
+            options={[
+              { value: '12m', label: '12ヶ月' },
+              { value: 'all', label: '全期間' },
+            ]}
+          />
+        </div>
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col pt-2">
@@ -66,7 +76,7 @@ export function TrendCard({
               <div className="flex items-center gap-4 text-[0.65rem] font-medium text-muted">
                 <span className="flex items-center gap-1.5">
                   <span className="size-1.5 rounded-full bg-gold" />
-                  純資産（機材込み）
+                  {summary.label}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-px w-3 bg-brand" />
@@ -75,7 +85,7 @@ export function TrendCard({
               </div>
               <div className="flex items-center gap-1 text-[0.68rem] font-semibold text-positive">
                 <ArrowUpRight className="size-3.5" />
-                {formatSignedPercent(growthRatio ?? 0)}
+                {formatSignedPercent(summary.growthRatio ?? 0)}
                 <span className="font-medium text-muted">/ 期間内</span>
               </div>
             </div>
@@ -115,8 +125,8 @@ export function TrendCard({
                   />
                   <Area
                     type="monotone"
-                    dataKey="total"
-                    name="純資産（機材込み）"
+                    dataKey={valueKey}
+                    name={summary.label}
                     stroke="#b3823d"
                     strokeWidth={2.2}
                     fill="url(#netWorthFill)"
@@ -140,13 +150,13 @@ export function TrendCard({
               <div>
                 <p className="text-[0.62rem] text-muted">期間内の増加</p>
                 <p className="mt-1 font-semibold tabular text-ink">
-                  {formatYen(growth, { sign: true })}
+                  {formatYen(summary.growth, { sign: true })}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-[0.62rem] text-muted">期間内の最高値</p>
                 <p className="mt-1 font-semibold tabular text-ink">
-                  {formatYen(peak)}
+                  {formatYen(summary.peak)}
                 </p>
               </div>
             </div>
