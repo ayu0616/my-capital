@@ -19,6 +19,7 @@ import { Route as SelfInvestmentRouteImport } from './routes/self-investment'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StockGoalsRouteImport } from './routes/stock-goals'
 import { Route as ApiBalancesRouteImport } from './routes/api/balances'
+import { Route as ApiStepsRouteImport } from './routes/api/steps'
 import { Route as ApiGearUploadRouteImport } from './routes/api/gear/upload'
 import { Route as ApiImagesSplatRouteImport } from './routes/api/images/$'
 
@@ -72,6 +73,11 @@ const ApiBalancesRoute = ApiBalancesRouteImport.update({
   path: '/api/balances',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStepsRoute = ApiStepsRouteImport.update({
+  id: '/api/steps',
+  path: '/api/steps',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGearUploadRoute = ApiGearUploadRouteImport.update({
   id: '/api/gear/upload',
   path: '/api/gear/upload',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/stock-goals': typeof StockGoalsRoute
   '/api/balances': typeof ApiBalancesRoute
+  '/api/steps': typeof ApiStepsRoute
   '/api/gear/upload': typeof ApiGearUploadRoute
   '/api/images/$': typeof ApiImagesSplatRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/stock-goals': typeof StockGoalsRoute
   '/api/balances': typeof ApiBalancesRoute
+  '/api/steps': typeof ApiStepsRoute
   '/api/gear/upload': typeof ApiGearUploadRoute
   '/api/images/$': typeof ApiImagesSplatRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/stock-goals': typeof StockGoalsRoute
   '/api/balances': typeof ApiBalancesRoute
+  '/api/steps': typeof ApiStepsRoute
   '/api/gear/upload': typeof ApiGearUploadRoute
   '/api/images/$': typeof ApiImagesSplatRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock-goals'
     | '/api/balances'
+    | '/api/steps'
     | '/api/gear/upload'
     | '/api/images/$'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock-goals'
     | '/api/balances'
+    | '/api/steps'
     | '/api/gear/upload'
     | '/api/images/$'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock-goals'
     | '/api/balances'
+    | '/api/steps'
     | '/api/gear/upload'
     | '/api/images/$'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   StockGoalsRoute: typeof StockGoalsRoute
   ApiBalancesRoute: typeof ApiBalancesRoute
+  ApiStepsRoute: typeof ApiStepsRoute
   ApiGearUploadRoute: typeof ApiGearUploadRoute
   ApiImagesSplatRoute: typeof ApiImagesSplatRoute
 }
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBalancesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/steps': {
+      id: '/api/steps'
+      path: '/api/steps'
+      fullPath: '/api/steps'
+      preLoaderRoute: typeof ApiStepsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/gear/upload': {
       id: '/api/gear/upload'
       path: '/api/gear/upload'
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   StockGoalsRoute: StockGoalsRoute,
   ApiBalancesRoute: ApiBalancesRoute,
+  ApiStepsRoute: ApiStepsRoute,
   ApiGearUploadRoute: ApiGearUploadRoute,
   ApiImagesSplatRoute: ApiImagesSplatRoute,
 }
