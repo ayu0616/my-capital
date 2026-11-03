@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, lt, max, ne, sql } from 'drizzle-orm'
 import { getDb } from '../db/client.server'
 import {
   DEFAULT_ACCOUNTS,
@@ -148,6 +148,15 @@ export async function readStepRecords() {
     .select()
     .from(stepRecords)
     .orderBy(asc(stepRecords.date))
+}
+
+/** 最終同期日時: 手入力以外の歩数記録が最後に更新された時刻。 */
+export async function readLastStepSyncedAt(): Promise<string | null> {
+  const [row] = await getDb()
+    .select({ lastSyncedAt: max(stepRecords.updatedAt) })
+    .from(stepRecords)
+    .where(ne(stepRecords.source, 'manual'))
+  return row?.lastSyncedAt ?? null
 }
 
 export async function syncLoanBalanceEntry(
@@ -440,6 +449,7 @@ export async function fetchDashboardData() {
     loanRows,
     loanPaymentRows,
     stepRows,
+    lastStepSyncedAt,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -457,6 +467,7 @@ export async function fetchDashboardData() {
     readLoans(),
     readLoanPayments(),
     readStepRecords(),
+    readLastStepSyncedAt(),
   ])
 
   const snapshots = buildAssetSnapshots(entries, withdrawals)
@@ -476,6 +487,7 @@ export async function fetchDashboardData() {
     loans: loanRows,
     loanPayments: loanPaymentRows,
     stepRecords: stepRows,
+    lastStepSyncedAt,
     today: toDateOnlyString(todayDateOnly()),
   }
 }
