@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   ArrowDownRight,
   ArrowUpRight,
+  BellRing,
   Landmark,
   Pencil,
   Plus,
@@ -13,7 +14,12 @@ import { NisaCard } from '../components/dashboard/nisa-card'
 import { TrendCard } from '../components/dashboard/trend-card'
 import { SecuritiesCard } from '../components/assets/securities-card'
 import { AssetEntryDialog } from '../components/assets/snapshot-dialog'
-import { ASSET_ITEM_GROUPS, ASSET_ITEMS, formatAssetEntryValue } from '../lib/asset-items'
+import {
+  ASSET_ITEM_GROUPS,
+  ASSET_ITEMS,
+  buildAssetItemStatuses,
+  formatAssetEntryValue,
+} from '../lib/asset-items'
 import { Button } from '../components/ui/button'
 import {
   Card,
@@ -26,6 +32,7 @@ import { EmptyState } from '../components/ui/empty-state'
 import { Badge } from '../components/ui/form'
 import { MetricCard, MetricGrid } from '../components/ui/metric'
 import { PageHeader } from '../components/ui/page'
+import { cn } from '../lib/utils'
 import {
   buildCurrentPortfolio,
   buildGearSummary,
@@ -94,6 +101,9 @@ function AssetsPage() {
   const activeItem = activeItemKey
     ? ASSET_ITEMS.find((item) => item.key === activeItemKey) ?? null
     : null
+
+  const itemStatuses = buildAssetItemStatuses(assetEntries, parseDateOnly(today))
+  const staleCount = Object.values(itemStatuses).filter((status) => status.needsUpdate).length
 
   const rows = [...snapshots].reverse()
 
@@ -179,6 +189,12 @@ function AssetsPage() {
         <CardHeader className="items-center">
           <div>
             <CardTitle>資産・負債項目の記録</CardTitle>
+            {staleCount > 0 ? (
+              <p className="mt-1 flex items-center gap-1 text-[0.68rem] font-semibold text-gold-strong">
+                <BellRing className="size-3" aria-hidden="true" />
+                {staleCount}件の更新が必要です
+              </p>
+            ) : null}
           </div>
           <Button variant="outline" size="sm" onClick={() => setAllOpen(true)}>
             <Plus className="size-3.5" />
@@ -192,24 +208,32 @@ function AssetsPage() {
                 <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-muted">
                   {group}
                 </p>
-                <ul className="divide-y divide-line/60 rounded-xl border border-line/60">
+                <ul className="divide-y divide-line/60 overflow-hidden rounded-xl border border-line/60">
                   {ASSET_ITEMS.filter((item) => item.group === group).map((item) => {
-                    const entry = assetEntries
-                      .filter((row) => row.itemKey === item.key)
-                      .sort((a, b) => b.valuedAt.localeCompare(a.valuedAt))[0]
+                    const { entry, needsUpdate } = itemStatuses[item.key]
                     return (
                       <li
                         key={item.key}
-                        className="flex items-center justify-between gap-3 px-3 py-2.5"
+                        className={cn(
+                          'flex items-center justify-between gap-3 px-3 py-2.5',
+                          needsUpdate && 'bg-gold/5',
+                        )}
                       >
                         <div className="min-w-0">
                           <p className="text-[0.72rem] font-semibold text-ink">
                             {item.label}
                           </p>
-                          <p className="mt-0.5 text-[0.56rem] text-muted">
-                            {entry
-                              ? `${entry.valuedAt} 時点`
-                              : '未記録'}
+                          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[0.56rem] text-muted">
+                            <span>{entry ? `${entry.valuedAt} 時点` : '未記録'}</span>
+                            {needsUpdate ? (
+                              <Badge
+                                variant="warning"
+                                className="gap-1 px-1.5 py-0 text-[0.54rem] leading-4"
+                              >
+                                <BellRing className="size-2.5" aria-hidden="true" />
+                                更新してください
+                              </Badge>
+                            ) : null}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
