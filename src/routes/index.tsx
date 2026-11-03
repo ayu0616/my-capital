@@ -52,6 +52,7 @@ function Dashboard() {
     retirement,
     retirementAllocations,
     loans,
+    stepRecords,
   } = data
   const today = parseDateOnly(data.today)
   const latest = snapshots.at(-1) ?? null
@@ -115,7 +116,13 @@ function Dashboard() {
         />
         <NisaCard className="lg:col-span-5" plan={nisa} />
 
-        <TrendCard className="lg:col-span-7" series={series} />
+        <TrendCard
+          className="lg:col-span-7"
+          series={series}
+          stepRecords={stepRecords}
+          strideCm={settings.strideCm}
+          today={data.today}
+        />
         <PortfolioCard className="lg:col-span-5" portfolio={portfolio} />
 
         {loanSummaries.length > 0 ? (
