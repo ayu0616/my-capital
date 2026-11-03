@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db/client.server'
-import { assetEntries, loans } from '../db/schema'
+import { assetEntries, loans, retirementAccounts } from '../db/schema'
 import { ASSET_ITEMS } from '../lib/asset-items'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
 import {
@@ -10,7 +10,7 @@ import {
   touchApiKey,
 } from './db.server'
 
-const DERIVED_ASSET_KEYS = new Set(['pension', 'gear_resale', 'loan_balance'])
+const DERIVED_ASSET_KEYS = new Set(['gear_resale', 'loan_balance'])
 
 export const BALANCE_ASSET_KEYS = ASSET_ITEMS.filter(
   (item) => item.unit === 'yen' && !DERIVED_ASSET_KEYS.has(item.key),
@@ -170,6 +170,25 @@ export async function recordBalanceBatch(
         },
       })
     assetCount += 1
+  }
+
+  const pensionBalance = data.assets?.pension
+  if (pensionBalance !== undefined) {
+    const balance = Math.round(pensionBalance)
+    const [retirement] = await db.select().from(retirementAccounts).limit(1)
+    if (retirement) {
+      await db
+        .update(retirementAccounts)
+        .set({ balance, valuedAt: asOfDate, updatedAt: now })
+        .where(eq(retirementAccounts.id, retirement.id))
+    } else {
+      await db.insert(retirementAccounts).values({
+        id: 'default',
+        balance,
+        valuedAt: asOfDate,
+        updatedAt: now,
+      })
+    }
   }
 
   const recordedLoans: Array<{
