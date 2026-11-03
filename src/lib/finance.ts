@@ -83,7 +83,7 @@ const safe = (value: number | null | undefined): number =>
 /*  Snapshot totals & series                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function snapshotTotal(snapshot: AssetSnapshot): number {
+export function snapshotAssetTotal(snapshot: AssetSnapshot): number {
   const fujitsuShares =
     safe(snapshot.holdingStockShares) +
     safe(snapshot.withdrawnHoldingShares) +
@@ -97,9 +97,12 @@ export function snapshotTotal(snapshot: AssetSnapshot): number {
     safe(snapshot.pensionBalance) +
     fujitsuShares * safe(snapshot.fujitsuCurrentPrice) +
     safe(snapshot.holdingCarryoverAmount) +
-    safe(snapshot.gearResaleAmount) -
-    safe(snapshot.loanBalance)
+    safe(snapshot.gearResaleAmount)
   )
+}
+
+export function snapshotTotal(snapshot: AssetSnapshot): number {
+  return snapshotAssetTotal(snapshot) - safe(snapshot.loanBalance)
 }
 
 export function snapshotFinancialTotal(snapshot: AssetSnapshot): number {
@@ -115,6 +118,7 @@ export interface MonthlyPoint {
   label: string
   shortLabel: string
   total: number
+  assetTotal: number
   financial: number
   gear: number
   invested: number
@@ -142,6 +146,7 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
         label: `${snapshot.yearMonth.slice(0, 4)}年${Number(snapshot.yearMonth.slice(5))}月`,
         shortLabel: `${Number(snapshot.yearMonth.slice(5))}月`,
         total: snapshotTotal(snapshot),
+        assetTotal: snapshotAssetTotal(snapshot),
         financial: snapshotFinancialTotal(snapshot),
         gear: safe(snapshot.gearResaleAmount),
         invested,
@@ -149,6 +154,50 @@ export function buildMonthlySeries(snapshots: AssetSnapshot[]): MonthlyPoint[] {
         fujitsu,
       }
     })
+}
+
+export type TrendSeries = 'assets' | 'netWorth'
+
+export const TREND_SERIES_LABELS: Record<TrendSeries, string> = {
+  assets: '資産総額（機材込み）',
+  netWorth: '純資産（機材込み）',
+}
+
+export function trendSeriesValue(
+  point: MonthlyPoint,
+  series: TrendSeries,
+): number {
+  return series === 'assets' ? point.assetTotal : point.total
+}
+
+export interface TrendSummary {
+  series: TrendSeries
+  label: string
+  growth: number
+  growthRatio: number | null
+  peak: number
+}
+
+export function buildTrendSummary(
+  points: MonthlyPoint[],
+  series: TrendSeries,
+): TrendSummary {
+  const first = points[0]
+  const last = points[points.length - 1]
+  const growth =
+    first && last
+      ? trendSeriesValue(last, series) - trendSeriesValue(first, series)
+      : 0
+  const firstValue = first ? trendSeriesValue(first, series) : 0
+  return {
+    series,
+    label: TREND_SERIES_LABELS[series],
+    growth,
+    growthRatio: firstValue > 0 ? growth / firstValue : null,
+    peak: points.length
+      ? Math.max(...points.map((point) => trendSeriesValue(point, series)))
+      : 0,
+  }
 }
 
 /* -------------------------------------------------------------------------- */
