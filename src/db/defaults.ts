@@ -29,6 +29,7 @@ export const DEFAULT_HOLDING: Omit<HoldingStockStatus, 'updatedAt'> = {
   recordedAt: '',
   averageAcquisitionPrice: 0,
   carryoverAmount: 0,
+  contributionStartMonth: '',
 }
 
 export const DEFAULT_RETIREMENT: Omit<RetirementAccount, 'updatedAt'> = {
