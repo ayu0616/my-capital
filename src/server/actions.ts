@@ -7,6 +7,7 @@ import {
   assetEntries,
   cameraGears,
   careerEvents,
+  holdingContributionChanges,
   holdingStockStatus,
   holdingWithdrawals,
   loanPayments,
@@ -36,6 +37,15 @@ const optionalDateString = z
   .refine(
     (value) => value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value),
     '日付の形式が正しくありません',
+  )
+const monthString = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, '年月の形式が正しくありません')
+const optionalMonthString = z
+  .string()
+  .refine(
+    (value) => value === '' || /^\d{4}-(0[1-9]|1[0-2])$/.test(value),
+    '年月の形式が正しくありません',
   )
 const optionalNotes = z.string().trim().max(1000).optional().nullable()
 
@@ -77,6 +87,7 @@ const holdingInput = z.object({
   recordedAt: dateString,
   averageAcquisitionPrice: z.number().min(0).max(10_000_000),
   carryoverAmount: z.number().int().min(0).max(1_000_000_000),
+  contributionStartMonth: optionalMonthString,
 })
 
 export const updateHolding = createServerFn({ method: 'POST' })
@@ -254,6 +265,60 @@ export const deleteHoldingWithdrawal = createServerFn({ method: 'POST' })
     await db
       .delete(holdingWithdrawals)
       .where(eq(holdingWithdrawals.id, data.id))
+    return { ok: true as const }
+  })
+
+const contributionChangeInput = z.object({
+  id: z.string().min(1).optional(),
+  effectiveMonth: monthString,
+  monthlyContribution: z.number().int().min(0).max(10_000_000),
+  incentiveRate: z.number().min(0).max(1),
+})
+
+export const saveHoldingContributionChange = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => contributionChangeInput.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const now = new Date().toISOString()
+    const values = {
+      effectiveMonth: data.effectiveMonth,
+      monthlyContribution: data.monthlyContribution,
+      incentiveRate: data.incentiveRate,
+      updatedAt: now,
+    }
+
+    if (data.id) {
+      const [existing] = await db
+        .select()
+        .from(holdingContributionChanges)
+        .where(eq(holdingContributionChanges.id, data.id))
+        .limit(1)
+      if (!existing) {
+        throw new Error('拠出設定の変更履歴が見つかりませんでした')
+      }
+      await db
+        .update(holdingContributionChanges)
+        .set(values)
+        .where(eq(holdingContributionChanges.id, data.id))
+      return { ok: true as const }
+    }
+
+    await db.insert(holdingContributionChanges).values({
+      id: newId(),
+      ...values,
+      createdAt: now,
+    })
+    return { ok: true as const }
+  })
+
+export const deleteHoldingContributionChange = createServerFn({
+  method: 'POST',
+})
+  .validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    await getDb()
+      .delete(holdingContributionChanges)
+      .where(eq(holdingContributionChanges.id, data.id))
     return { ok: true as const }
   })
 

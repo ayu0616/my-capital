@@ -107,6 +107,7 @@ export const holdingStockStatus = sqliteTable('holding_stock_status', {
   recordedAt: text('recorded_at').notNull().default(''), // 会社ページの記録日 YYYY-MM-DD
   averageAcquisitionPrice: real('average_acquisition_price').notNull().default(0), // 平均取得単価
   carryoverAmount: integer('carryover_amount').notNull().default(0), // 繰越金
+  contributionStartMonth: text('contribution_start_month').notNull().default(''), // 拠出開始年月 YYYY-MM（空は未設定）
   updatedAt: text('updated_at').notNull(),
 })
 
@@ -129,6 +130,27 @@ export const holdingWithdrawals = sqliteTable(
   },
   (table) => [
     index('holding_withdrawals_withdrawn_at_idx').on(table.withdrawnAt),
+  ],
+)
+
+/**
+ * 持株会の拠出設定の変更履歴。月ごとのレコードは作らず、
+ * 変更があった月だけを保存して自己負担累計を逆算する。
+ */
+export const holdingContributionChanges = sqliteTable(
+  'holding_contribution_changes',
+  {
+    id: text('id').primaryKey(),
+    effectiveMonth: text('effective_month').notNull(), // 適用開始年月 YYYY-MM
+    monthlyContribution: integer('monthly_contribution').notNull().default(0),
+    incentiveRate: real('incentive_rate').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('holding_contribution_changes_effective_month_idx').on(
+      table.effectiveMonth,
+    ),
   ],
 )
 
@@ -465,6 +487,8 @@ export type AuthChallenge = typeof authChallenges.$inferSelect
 export type ApiKey = typeof apiKeys.$inferSelect
 export type HoldingStockStatus = typeof holdingStockStatus.$inferSelect
 export type HoldingWithdrawal = typeof holdingWithdrawals.$inferSelect
+export type HoldingContributionChange =
+  typeof holdingContributionChanges.$inferSelect
 export type StockGoal = typeof stockGoals.$inferSelect
 export type RetirementAccount = typeof retirementAccounts.$inferSelect
 export type RetirementAllocation = typeof retirementAllocations.$inferSelect
