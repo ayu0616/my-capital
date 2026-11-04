@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'updatedAt'> = {
   fujitsuAlertThreshold: 0.15,
   gearFundTarget: 150_000,
   gearFundSaved: 0,
+  strideCm: 70,
 }
 
 export const DEFAULT_HOLDING: Omit<HoldingStockStatus, 'updatedAt'> = {

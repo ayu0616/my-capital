@@ -25,6 +25,7 @@ import {
   securitiesHoldings,
   securitiesImportBatches,
   selfInvestments,
+  stepRecords,
   stockGoals,
 } from '../db/schema'
 import { toDateOnlyString, todayDateOnly } from '../lib/format'
@@ -139,6 +140,14 @@ export async function readLoanPayments() {
     .select()
     .from(loanPayments)
     .orderBy(desc(loanPayments.paidAt), desc(loanPayments.createdAt))
+}
+
+/** 歩行記録は古い順に返す（グラフの累積計算にそのまま使う）。 */
+export async function readStepRecords() {
+  return getDb()
+    .select()
+    .from(stepRecords)
+    .orderBy(asc(stepRecords.date))
 }
 
 export async function syncLoanBalanceEntry(
@@ -430,6 +439,7 @@ export async function fetchDashboardData() {
     pensionAllocations,
     loanRows,
     loanPaymentRows,
+    stepRows,
   ] = await Promise.all([
     readSettings(),
     readHolding(),
@@ -446,6 +456,7 @@ export async function fetchDashboardData() {
     readRetirementAllocations(),
     readLoans(),
     readLoanPayments(),
+    readStepRecords(),
   ])
 
   const snapshots = buildAssetSnapshots(entries, withdrawals)
@@ -464,6 +475,7 @@ export async function fetchDashboardData() {
     retirementAllocations: pensionAllocations,
     loans: loanRows,
     loanPayments: loanPaymentRows,
+    stepRecords: stepRows,
     today: toDateOnlyString(todayDateOnly()),
   }
 }

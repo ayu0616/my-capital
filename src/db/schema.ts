@@ -28,6 +28,7 @@ export const appSettings = sqliteTable('app_settings', {
   fujitsuAlertThreshold: real('fujitsu_alert_threshold').notNull().default(0.15),
   gearFundTarget: integer('gear_fund_target').notNull().default(150_000),
   gearFundSaved: integer('gear_fund_saved').notNull().default(0),
+  strideCm: real('stride_cm').notNull().default(70), // 歩幅。歩数の概算距離に使う
   updatedAt: text('updated_at').notNull(),
 })
 
@@ -433,6 +434,28 @@ export const careerEvents = sqliteTable('career_events', {
 })
 
 /* -------------------------------------------------------------------------- */
+/*  Health capital (step records)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 1日1件の歩行記録。日付で一意なので、同じ日は上書きする。
+ * source は将来の自動取り込み用（'manual' | 'shortcut' | 'import'）。
+ */
+export const stepRecords = sqliteTable(
+  'step_records',
+  {
+    id: text('id').primaryKey(),
+    date: text('date').notNull(), // YYYY-MM-DD
+    steps: integer('steps').notNull().default(0),
+    place: text('place'), // 場所メモ（任意）
+    source: text('source').notNull().default('manual'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [uniqueIndex('step_records_date_idx').on(table.date)],
+)
+
+/* -------------------------------------------------------------------------- */
 /*  Inferred types                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -455,3 +478,4 @@ export type AssetEntry = typeof assetEntries.$inferSelect
 export type CameraGear = typeof cameraGears.$inferSelect
 export type SelfInvestment = typeof selfInvestments.$inferSelect
 export type CareerEvent = typeof careerEvents.$inferSelect
+export type StepRecord = typeof stepRecords.$inferSelect

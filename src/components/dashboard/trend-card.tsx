@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import type { StepRecord } from '../../db/schema'
 import { formatCompactYen, formatSignedPercent, formatYen } from '../../lib/format'
 import type { MonthlyPoint, TrendSeries } from '../../lib/finance'
 import { buildTrendSummary } from '../../lib/finance'
@@ -19,36 +20,55 @@ import { EmptyState } from '../ui/empty-state'
 import { Segmented } from '../ui/page'
 import { ClientChart } from '../charts/client-chart'
 import { MoneyTooltip } from '../charts/tooltip'
+import { HealthCapitalPanel } from './health-capital-panel'
+
+type TrendView = TrendSeries | 'health'
 
 export function TrendCard({
   series,
+  stepRecords,
+  strideCm = 70,
+  today,
   className,
 }: {
   series: MonthlyPoint[]
+  stepRecords?: StepRecord[]
+  strideCm?: number
+  today?: string
   className?: string
 }) {
   const [range, setRange] = useState<'12m' | 'all'>('12m')
-  const [trendSeries, setTrendSeries] = useState<TrendSeries>('assets')
+  const [trendSeries, setTrendSeries] = useState<TrendView>('assets')
   const data = range === '12m' ? series.slice(-12) : series
-  const summary = buildTrendSummary(data, trendSeries)
-  const valueKey = trendSeries === 'assets' ? 'assetTotal' : 'total'
+  const summary = buildTrendSummary(
+    data,
+    trendSeries === 'health' ? 'assets' : trendSeries,
+  )
+  const valueKey = trendSeries === 'netWorth' ? 'total' : 'assetTotal'
+  const isHealth = trendSeries === 'health' && Boolean(stepRecords)
+  const trendOptions = [
+    { value: 'assets' as const, label: '資産総額' },
+    { value: 'netWorth' as const, label: '純資産' },
+    ...(stepRecords
+      ? [{ value: 'health' as const, label: '健康資本' }]
+      : []),
+  ]
 
   return (
     <Card className={cn('flex flex-col', className)}>
       <CardHeader className="items-start">
         <div>
-          <CardKicker>Asset trend</CardKicker>
-          <CardTitle className="mt-1.5">資産の推移</CardTitle>
+          <CardKicker>{isHealth ? 'Health capital' : 'Asset trend'}</CardKicker>
+          <CardTitle className="mt-1.5">
+            {isHealth ? '健康資本' : '資産の推移'}
+          </CardTitle>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented
             ariaLabel="表示する系列"
             value={trendSeries}
             onChange={setTrendSeries}
-            options={[
-              { value: 'assets', label: '資産総額' },
-              { value: 'netWorth', label: '純資産' },
-            ]}
+            options={trendOptions}
           />
           <Segmented
             ariaLabel="表示期間"
@@ -63,7 +83,14 @@ export function TrendCard({
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col pt-2">
-        {series.length < 2 ? (
+        {isHealth ? (
+          <HealthCapitalPanel
+            records={stepRecords ?? []}
+            strideCm={strideCm}
+            today={today ?? ''}
+            range={range}
+          />
+        ) : series.length < 2 ? (
           <EmptyState
             icon={TrendingUp}
             title="まだ推移がありません"

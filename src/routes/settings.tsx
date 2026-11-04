@@ -162,6 +162,7 @@ function ProfileForm({
   const [gearFundTarget, setGearFundTarget] = useState(
     String(settings.gearFundTarget),
   )
+  const [strideCm, setStrideCm] = useState(String(settings.strideCm))
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -184,6 +185,10 @@ function ProfileForm({
           fujitsuAlertThreshold:
             Math.min(100, Math.max(1, parseNumberInput(alertPercent))) / 100,
           gearFundTarget: Math.max(1, parseYenInput(gearFundTarget)),
+          strideCm: Math.min(
+            200,
+            Math.max(30, parseNumberInput(strideCm) || 70),
+          ),
         },
       })
       toast.success('プロフィールと目標を更新しました')
@@ -296,6 +301,27 @@ function ProfileForm({
                 value={gearFundTarget}
                 onChange={(event) => setGearFundTarget(event.target.value)}
               />
+            </Field>
+            <Field
+              label="歩幅（cm）"
+              htmlFor="set-stride"
+              hint="健康資本の歩数から概算距離を計算するときに使います。"
+            >
+              <div className="relative">
+                <Input
+                  id="set-stride"
+                  type="number"
+                  min={30}
+                  max={200}
+                  step={0.1}
+                  value={strideCm}
+                  onChange={(event) => setStrideCm(event.target.value)}
+                  className="pr-10"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.68rem] text-muted">
+                  cm
+                </span>
+              </div>
             </Field>
           </FieldGrid>
 
