@@ -129,7 +129,9 @@ export function HoldingCard({
             </p>
           </div>
           <div className="bg-canvas/35 px-2.5 py-2.5">
-            <p className="text-[0.5rem] leading-tight text-muted">評価損益</p>
+            <p className="text-[0.5rem] leading-tight text-muted">
+              評価損益（簿価ベース）
+            </p>
             <p
               className={cn(
                 'mt-1 text-[0.7rem] font-bold tabular',
@@ -145,6 +147,34 @@ export function HoldingCard({
             {plan.unrealizedGainRatio != null ? (
               <p className="mt-0.5 text-[0.48rem] text-muted tabular">
                 {formatSignedPercent(plan.unrealizedGainRatio)}
+              </p>
+            ) : null}
+          </div>
+          <div className="bg-canvas/35 px-2.5 py-2.5">
+            <p className="flex flex-wrap items-center gap-1 text-[0.5rem] leading-tight text-muted">
+              <span>評価損益（自己負担ベース）</span>
+              {plan.selfBasisIsEstimate ? (
+                <span className="rounded bg-gold/15 px-1 py-px text-[0.44rem] font-semibold leading-none text-gold-strong">
+                  近似
+                </span>
+              ) : null}
+            </p>
+            <p
+              className={cn(
+                'mt-1 text-[0.7rem] font-bold tabular',
+                plan.selfUnrealizedGain != null &&
+                  plan.selfUnrealizedGain < 0
+                  ? 'text-danger'
+                  : 'text-ink',
+              )}
+            >
+              {plan.selfUnrealizedGain == null
+                ? '—'
+                : formatYen(plan.selfUnrealizedGain, { sign: true })}
+            </p>
+            {plan.selfUnrealizedGainRatio != null ? (
+              <p className="mt-0.5 text-[0.48rem] text-muted tabular">
+                {formatSignedPercent(plan.selfUnrealizedGainRatio)}
               </p>
             ) : null}
           </div>
