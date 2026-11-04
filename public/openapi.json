@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Asset & Life Studio Balance API",
+    "title": "Asset & Life Studio API",
     "version": "1.0.0",
-    "description": "資産・負債の残高を外部バッチから記録するAPIです。設定画面で発行したAPIキーが必要です。"
+    "description": "資産・負債の残高と歩数を外部から記録するAPIです。設定画面で発行したAPIキーが必要です。"
   },
   "servers": [
     {
@@ -110,6 +110,88 @@
           },
           "422": {
             "description": "指定したローンのIDが見つからない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/steps": {
+      "post": {
+        "tags": ["Steps"],
+        "summary": "歩数を記録する",
+        "description": "1日分または複数日分の歩数を記録します。同じ日付の記録は上書きされ、同じ内容を再送しても二重計上されません。`source` は `shortcut` になり、最終同期日時はこのAPIで更新された最新時刻になります。",
+        "operationId": "recordSteps",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StepRecordInput"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StepBatch"
+                  }
+                ]
+              },
+              "examples": {
+                "single": {
+                  "summary": "1日分の歩数を記録",
+                  "value": {
+                    "date": "2026-11-03",
+                    "steps": 8432,
+                    "place": "通勤"
+                  }
+                },
+                "multiple": {
+                  "summary": "複数日分の歩数をまとめて記録",
+                  "value": {
+                    "records": [
+                      {
+                        "date": "2026-11-02",
+                        "steps": 7210
+                      },
+                      {
+                        "date": "2026-11-03",
+                        "steps": 8432
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "記録した日付",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepBatchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入力内容が正しくない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "APIキーがない、または無効",
             "content": {
               "application/json": {
                 "schema": {
@@ -298,6 +380,63 @@
           }
         },
         "required": ["ok", "asOfDate", "assets", "loans"]
+      },
+      "StepRecordInput": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "歩数の日付（YYYY-MM-DD）。",
+            "example": "2026-11-03"
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000,
+            "description": "歩数（0以上1,000,000以下）。",
+            "example": 8432
+          },
+          "place": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "場所メモ（任意）。"
+          }
+        },
+        "required": ["date", "steps"]
+      },
+      "StepBatch": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 366,
+            "description": "複数日分の歩数。同じ日付は指定できません。",
+            "items": {
+              "$ref": "#/components/schemas/StepRecordInput"
+            }
+          }
+        },
+        "required": ["records"]
+      },
+      "StepBatchResult": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "type": "integer",
+            "description": "記録した件数。"
+          },
+          "dates": {
+            "type": "array",
+            "description": "記録した日付。",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        },
+        "required": ["recorded", "dates"]
       },
       "Error": {
         "type": "object",

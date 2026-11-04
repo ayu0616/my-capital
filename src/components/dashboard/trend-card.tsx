@@ -27,12 +27,14 @@ type TrendView = TrendSeries | 'health'
 export function TrendCard({
   series,
   stepRecords,
+  lastStepSyncedAt,
   strideCm = 70,
   today,
   className,
 }: {
   series: MonthlyPoint[]
   stepRecords?: StepRecord[]
+  lastStepSyncedAt?: string | null
   strideCm?: number
   today?: string
   className?: string
@@ -86,6 +88,7 @@ export function TrendCard({
         {isHealth ? (
           <HealthCapitalPanel
             records={stepRecords ?? []}
+            lastStepSyncedAt={lastStepSyncedAt}
             strideCm={strideCm}
             today={today ?? ''}
             range={range}

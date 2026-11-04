@@ -111,7 +111,7 @@ function ApiDocsPage() {
       <PageHeader
         kicker="API reference"
         title="APIドキュメント"
-        description="残高連携APIの仕様を確認し、そのまま呼び出せます。APIキーは Authorize から設定してください。"
+        description="連携APIの仕様を確認し、そのまま呼び出せます。APIキーは Authorize から設定してください。"
         actions={
           <a
             href="/openapi.json"

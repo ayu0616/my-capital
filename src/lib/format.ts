@@ -133,6 +133,24 @@ export function formatDateJa(
   }).format(date)
 }
 
+/** 2026/11/04 07:30 — ISO 8601 の日時を日本時間で表示する。 */
+export function formatDateTimeJa(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(date.getTime())) return ''
+  const parts = new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: 'Asia/Tokyo',
+  }).formatToParts(date)
+  const part = (type: 'year' | 'month' | 'day' | 'hour' | 'minute') =>
+    parts.find((item) => item.type === type)?.value ?? ''
+  return `${part('year')}/${part('month')}/${part('day')} ${part('hour')}:${part('minute')}`
+}
+
 export function formatYearMonth(yearMonth: string): string {
   const [year, month] = yearMonth.split('-')
   return `${year}年${Number(month)}月`

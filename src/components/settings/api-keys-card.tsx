@@ -120,7 +120,7 @@ export function ApiKeysCard({
         </CardHeader>
         <CardContent>
           <p className="text-xs leading-relaxed text-muted">
-            外部のバッチから資産・負債の残高を記録するためのAPIキーです。キーは発行時に一度だけ表示されます。
+            外部のバッチやiPhoneショートカットから、資産・負債の残高や歩数を記録するためのAPIキーです。キーは発行時に一度だけ表示されます。
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <a

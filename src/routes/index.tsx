@@ -53,6 +53,7 @@ function Dashboard() {
     retirementAllocations,
     loans,
     stepRecords,
+    lastStepSyncedAt,
   } = data
   const today = parseDateOnly(data.today)
   const latest = snapshots.at(-1) ?? null
@@ -120,6 +121,7 @@ function Dashboard() {
           className="lg:col-span-7"
           series={series}
           stepRecords={stepRecords}
+          lastStepSyncedAt={lastStepSyncedAt}
           strideCm={settings.strideCm}
           today={data.today}
         />

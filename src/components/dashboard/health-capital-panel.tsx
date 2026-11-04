@@ -15,6 +15,7 @@ import type { StepRecord } from '../../db/schema'
 import {
   addYears,
   formatDateJa,
+  formatDateTimeJa,
   parseDateOnly,
   toDateOnlyString,
 } from '../../lib/format'
@@ -39,11 +40,13 @@ const RECENT_LIMIT = 6
 
 export function HealthCapitalPanel({
   records,
+  lastStepSyncedAt,
   strideCm,
   today,
   range,
 }: {
   records: StepRecord[]
+  lastStepSyncedAt?: string | null
   strideCm: number
   today: string
   range: '12m' | 'all'
@@ -147,10 +150,17 @@ export function HealthCapitalPanel({
                 </p>
               </div>
             </div>
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <Plus className="size-3.5" />
-              記録する
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button size="sm" onClick={() => setDialogOpen(true)}>
+                <Plus className="size-3.5" />
+                記録する
+              </Button>
+              {lastStepSyncedAt ? (
+                <p className="text-[0.54rem] text-muted">
+                  最終同期 {formatDateTimeJa(lastStepSyncedAt)}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
