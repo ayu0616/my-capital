@@ -27,6 +27,7 @@ import {
 } from '../components/ui/card'
 import { Badge, Field, FieldGrid, Input, MoneyInput } from '../components/ui/form'
 import { PageHeader } from '../components/ui/page'
+import { ContributionChangeCard } from '../components/holding/contribution-change-card'
 import { WithdrawalCard } from '../components/holding/withdrawal-card'
 import { ApiKeysCard } from '../components/settings/api-keys-card'
 import { PasskeyCard } from '../components/settings/passkey-card'
@@ -66,6 +67,7 @@ function SettingsPage() {
     settings,
     holding,
     withdrawals,
+    contributionChanges,
     accounts,
     retirement,
     retirementAllocations,
@@ -100,6 +102,11 @@ function SettingsPage() {
           holding={holding}
           onSaved={() => router.invalidate()}
           className="lg:col-span-5"
+        />
+        <ContributionChangeCard
+          holding={holding}
+          changes={contributionChanges}
+          className="lg:col-span-12"
         />
         <WithdrawalCard
           holding={holding}
@@ -385,6 +392,9 @@ function HoldingForm({
     holding.averageAcquisitionPrice ? String(holding.averageAcquisitionPrice) : '',
   )
   const [carryover, setCarryover] = useState(String(holding.carryoverAmount))
+  const [contributionStartMonth, setContributionStartMonth] = useState(
+    holding.contributionStartMonth,
+  )
   const [price, setPrice] = useState(String(holding.latestStockPrice))
   const [targetShares, setTargetShares] = useState(String(holding.targetShares))
   const [pending, setPending] = useState(false)
@@ -447,6 +457,7 @@ function HoldingForm({
           recordedAt,
           averageAcquisitionPrice,
           carryoverAmount,
+          contributionStartMonth,
         },
       })
       toast.success('持株会の設定を更新しました')
@@ -579,6 +590,20 @@ function HoldingForm({
                     %
                   </span>
                 </div>
+              </Field>
+              <Field
+                label="拠出開始年月"
+                htmlFor="hold-contribution-start"
+                hint="未設定の場合は平均取得単価から自己負担を近似します。"
+              >
+                <Input
+                  id="hold-contribution-start"
+                  type="month"
+                  value={contributionStartMonth}
+                  onChange={(event) =>
+                    setContributionStartMonth(event.target.value)
+                  }
+                />
               </Field>
               <Field label="目標株数（単元）" htmlFor="hold-target">
                 <Input
