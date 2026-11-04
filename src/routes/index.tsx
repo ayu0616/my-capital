@@ -44,6 +44,7 @@ function Dashboard() {
     settings,
     holding,
     withdrawals,
+    contributionChanges,
     snapshots,
     gears,
     investments,
@@ -74,7 +75,12 @@ function Dashboard() {
   const previousTotal = previous ? snapshotTotal(previous) : null
   const trend = buildNetWorthTrend(portfolio.total, previousTotal)
   const nisa = buildNisaPlan(settings, latest?.nisaContributedPrincipal ?? 0, today)
-  const holdingPlan = buildHoldingPlan(holding, today, withdrawals)
+  const holdingPlan = buildHoldingPlan(
+    holding,
+    today,
+    withdrawals,
+    contributionChanges,
+  )
   const humanCapital = buildHumanCapital(investments, careerEvents)
   const series = buildMonthlySeries(snapshots)
   const stockGoalSummaries = buildStockGoalSummaries(stockGoals, today)

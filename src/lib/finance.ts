@@ -3,6 +3,7 @@ import type {
   AssetSnapshot,
   CameraGear,
   CareerEvent,
+  HoldingContributionChange,
   HoldingStockStatus,
   HoldingWithdrawal,
   Loan,
@@ -424,6 +425,118 @@ function parseBirthDate(value: string, fallback: Date): Date {
 /*  Employee holding plan (Fujitsu)                                            */
 /* -------------------------------------------------------------------------- */
 
+const YEAR_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
+
+function nextYearMonth(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number)
+  return month === 12
+    ? `${year + 1}-01`
+    : `${year}-${String(month + 1).padStart(2, '0')}`
+}
+
+export interface HoldingSelfContribution {
+  selfContribution: number | null
+  isEstimate: boolean
+}
+
+/**
+ * 現在保有分に対応する自己負担累計を求める。
+ * 拠出開始年月が未設定の場合は、平均取得単価を奨励金率で割り戻した近似値を使う。
+ */
+export function buildHoldingSelfContribution(
+  holding: HoldingStockStatus,
+  today = todayDateOnly(),
+  withdrawals: HoldingWithdrawal[] = [],
+  changes: HoldingContributionChange[] = [],
+): HoldingSelfContribution {
+  const currentShares = Math.max(0, safe(holding.currentAccumulatedShares))
+  const averageAcquisitionPrice = Math.max(
+    0,
+    safe(holding.averageAcquisitionPrice),
+  )
+  const incentiveRate = Math.max(0, safe(holding.companyIncentiveRate))
+
+  if (!YEAR_MONTH_PATTERN.test(holding.contributionStartMonth)) {
+    if (averageAcquisitionPrice <= 0) {
+      return { selfContribution: null, isEstimate: true }
+    }
+    const selfAveragePrice = averageAcquisitionPrice / (1 + incentiveRate)
+    return {
+      selfContribution: currentShares * selfAveragePrice,
+      isEstimate: true,
+    }
+  }
+
+  const startMonth = holding.contributionStartMonth
+  const recordedMonth = /^\d{4}-(0[1-9]|1[0-2])/.test(holding.recordedAt)
+    ? holding.recordedAt.slice(0, 7)
+    : currentYearMonth(today)
+  if (
+    !YEAR_MONTH_PATTERN.test(recordedMonth) ||
+    recordedMonth < startMonth
+  ) {
+    return { selfContribution: null, isEstimate: false }
+  }
+
+  const validChanges = changes
+    .filter((change) => YEAR_MONTH_PATTERN.test(change.effectiveMonth))
+    .sort((a, b) => a.effectiveMonth.localeCompare(b.effectiveMonth))
+
+  const withdrawalSharesByMonth = new Map<string, number>()
+  for (const withdrawal of withdrawals) {
+    const month = withdrawal.withdrawnAt.slice(0, 7)
+    const shares = Math.max(0, safe(withdrawal.shares))
+    if (!YEAR_MONTH_PATTERN.test(month) || shares <= 0) continue
+    withdrawalSharesByMonth.set(
+      month,
+      (withdrawalSharesByMonth.get(month) ?? 0) + shares,
+    )
+  }
+
+  let selfContribution = 0
+  let effectiveContribution = Math.max(0, safe(holding.monthlyContribution))
+  let changeIndex = 0
+  let month = startMonth
+
+  while (month <= recordedMonth) {
+    while (
+      changeIndex < validChanges.length &&
+      validChanges[changeIndex].effectiveMonth <= month
+    ) {
+      effectiveContribution = Math.max(
+        0,
+        safe(validChanges[changeIndex].monthlyContribution),
+      )
+      changeIndex += 1
+    }
+    selfContribution += effectiveContribution
+
+    const withdrawnThisMonth = withdrawalSharesByMonth.get(month) ?? 0
+    if (withdrawnThisMonth > 0) {
+      const withdrawnFromThisMonth = withdrawals.reduce((sum, withdrawal) => {
+        const withdrawnMonth = withdrawal.withdrawnAt.slice(0, 7)
+        if (
+          !YEAR_MONTH_PATTERN.test(withdrawnMonth) ||
+          withdrawnMonth < month
+        ) {
+          return sum
+        }
+        return sum + Math.max(0, safe(withdrawal.shares))
+      }, 0)
+      const sharesBeforeWithdrawal = currentShares + withdrawnFromThisMonth
+      if (sharesBeforeWithdrawal > 0) {
+        selfContribution *=
+          (sharesBeforeWithdrawal - withdrawnThisMonth) /
+          sharesBeforeWithdrawal
+      }
+    }
+
+    month = nextYearMonth(month)
+  }
+
+  return { selfContribution, isEstimate: false }
+}
+
 export interface HoldingPlan {
   currentShares: number
   withdrawnShares: number
@@ -447,6 +560,10 @@ export interface HoldingPlan {
   costBasis: number | null
   unrealizedGain: number | null
   unrealizedGainRatio: number | null
+  selfContribution: number | null
+  selfUnrealizedGain: number | null
+  selfUnrealizedGainRatio: number | null
+  selfBasisIsEstimate: boolean
   withdrawnCostBasis: number | null
   withdrawnUnrealizedGain: number | null
   withdrawnUnrealizedGainRatio: number | null
@@ -459,6 +576,7 @@ export function buildHoldingPlan(
   holding: HoldingStockStatus,
   today = todayDateOnly(),
   withdrawals: HoldingWithdrawal[] = [],
+  contributionChanges: HoldingContributionChange[] = [],
 ): HoldingPlan {
   const currentShares = Math.max(0, safe(holding.currentAccumulatedShares))
   const withdrawnShares = withdrawals.reduce(
@@ -505,6 +623,19 @@ export function buildHoldingPlan(
       ? withdrawnUnrealizedGain / withdrawnCostBasis
       : null
   const value = currentShares * price
+  const selfBasis = buildHoldingSelfContribution(
+    holding,
+    today,
+    withdrawals,
+    contributionChanges,
+  )
+  const selfContribution = selfBasis.selfContribution
+  const selfUnrealizedGain =
+    selfContribution != null && price > 0 ? value - selfContribution : null
+  const selfUnrealizedGainRatio =
+    selfUnrealizedGain != null && selfContribution != null && selfContribution > 0
+      ? selfUnrealizedGain / selfContribution
+      : null
   return {
     currentShares,
     withdrawnShares,
@@ -528,6 +659,10 @@ export function buildHoldingPlan(
     costBasis,
     unrealizedGain,
     unrealizedGainRatio,
+    selfContribution,
+    selfUnrealizedGain,
+    selfUnrealizedGainRatio,
+    selfBasisIsEstimate: selfBasis.isEstimate,
     withdrawnCostBasis,
     withdrawnUnrealizedGain,
     withdrawnUnrealizedGainRatio,

@@ -16,6 +16,7 @@ import {
   cameraGears,
   careerEvents,
   financialAccounts,
+  holdingContributionChanges,
   holdingStockStatus,
   holdingWithdrawals,
   loanPayments,
@@ -112,6 +113,16 @@ export async function readHoldingWithdrawals() {
     .select()
     .from(holdingWithdrawals)
     .orderBy(desc(holdingWithdrawals.withdrawnAt), desc(holdingWithdrawals.createdAt))
+}
+
+export async function readHoldingContributionChanges() {
+  return getDb()
+    .select()
+    .from(holdingContributionChanges)
+    .orderBy(
+      asc(holdingContributionChanges.effectiveMonth),
+      asc(holdingContributionChanges.createdAt),
+    )
 }
 
 export async function readAssetEntries() {
@@ -439,6 +450,7 @@ export async function fetchDashboardData() {
     settings,
     holding,
     withdrawals,
+    contributionChanges,
     entries,
     gears,
     investments,
@@ -454,6 +466,7 @@ export async function fetchDashboardData() {
     readSettings(),
     readHolding(),
     readHoldingWithdrawals(),
+    readHoldingContributionChanges(),
     readAssetEntries(),
     db.select().from(cameraGears).orderBy(desc(cameraGears.purchasedAt)),
     db
@@ -476,6 +489,7 @@ export async function fetchDashboardData() {
     settings,
     holding,
     withdrawals,
+    contributionChanges,
     snapshots,
     assetEntries: entries,
     gears,
@@ -608,6 +622,7 @@ export async function fetchSettingsData() {
     settings,
     holding,
     withdrawals,
+    contributionChanges,
     accounts,
     entries,
     gearCount,
@@ -623,6 +638,7 @@ export async function fetchSettingsData() {
     readSettings(),
     readHolding(),
     readHoldingWithdrawals(),
+    readHoldingContributionChanges(),
     db
       .select()
       .from(financialAccounts)
@@ -643,6 +659,7 @@ export async function fetchSettingsData() {
     settings,
     holding,
     withdrawals,
+    contributionChanges,
     accounts,
     retirement,
     retirementAllocations: retirementAllocationRows,
