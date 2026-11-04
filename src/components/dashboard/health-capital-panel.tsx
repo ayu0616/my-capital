@@ -3,9 +3,9 @@ import { Footprints, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
-  Area,
+  Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,19 +13,18 @@ import {
 } from 'recharts'
 import type { StepRecord } from '../../db/schema'
 import {
-  addYears,
   formatDateJa,
   formatDateTimeJa,
-  parseDateOnly,
-  toDateOnlyString,
+  formatSignedPercent,
 } from '../../lib/format'
 import {
-  buildStepPoints,
+  aggregateSteps,
+  buildStepSummary,
   formatCompactSteps,
   formatDistance,
   formatSteps,
-  sumSteps,
-  type StepSeries,
+  type StepBucket,
+  type StepGranularity,
 } from '../../lib/steps'
 import { deleteStepRecord } from '../../server/actions'
 import { ClientChart } from '../charts/client-chart'
@@ -38,49 +37,49 @@ import { StepDialog } from './step-dialog'
 
 const RECENT_LIMIT = 6
 
+const GRANULARITY_COPY: Record<
+  StepGranularity,
+  { totalHeading: string; comparisonHeading: string }
+> = {
+  daily: { totalHeading: '直近30日の合計', comparisonHeading: '前30日比' },
+  monthly: { totalHeading: '今月の合計', comparisonHeading: '前月比' },
+  yearly: { totalHeading: '今年の合計', comparisonHeading: '前年比' },
+}
+
 export function HealthCapitalPanel({
   records,
   lastStepSyncedAt,
   strideCm,
   today,
-  range,
 }: {
   records: StepRecord[]
   lastStepSyncedAt?: string | null
   strideCm: number
   today: string
-  range: '12m' | 'all'
 }) {
   const router = useRouter()
-  const [series, setSeries] = useState<StepSeries>('cumulative')
+  const [granularity, setGranularity] = useState<StepGranularity>('monthly')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<StepRecord | null>(null)
   const [deletePending, setDeletePending] = useState(false)
 
-  const periodStart =
-    range === '12m'
-      ? toDateOnlyString(addYears(parseDateOnly(today), -1))
-      : null
-  const periodRecords = periodStart
-    ? records.filter((record) => record.date >= periodStart)
-    : records
+  const buckets = aggregateSteps(records, granularity, today)
+  const summary = buildStepSummary(records, granularity, today)
+  const copy = GRANULARITY_COPY[granularity]
+  const distance = formatDistance(summary.total, strideCm)
+  const hasSteps = buckets.some((bucket) => bucket.steps > 0)
+  const changeTone =
+    summary.changeRatio === null
+      ? 'text-muted'
+      : summary.changeRatio > 0
+        ? 'text-positive'
+        : summary.changeRatio < 0
+          ? 'text-danger'
+          : 'text-ink'
 
-  const totalSteps = sumSteps(records)
-  const periodSteps = sumSteps(periodRecords)
-  const averageSteps =
-    periodRecords.length > 0 ? Math.round(periodSteps / periodRecords.length) : 0
-  // 累積は全期間で積み上げた値を保ち、表示だけを期間で切り出す
-  const points = buildStepPoints(records).filter(
-    (point) => !periodStart || point.date >= periodStart,
-  )
   const recent = [...records]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, RECENT_LIMIT)
-
-  const valueKey = series === 'cumulative' ? 'cumulative' : 'steps'
-  const seriesLabel = series === 'cumulative' ? '累積歩数' : '日別歩数'
-  const totalDistance = formatDistance(totalSteps, strideCm)
-  const periodDistance = formatDistance(periodSteps, strideCm)
 
   async function confirmDelete() {
     if (!deleting) return
@@ -103,7 +102,7 @@ export function HealthCapitalPanel({
         <EmptyState
           icon={Footprints}
           title="歩行記録がありません"
-          description="日付と歩数を記録すると、累積と日別の歩数がここに表示されます。"
+          description="日付と歩数を記録すると、期間ごとの歩数がここに表示されます。"
           className="flex-1"
           action={
             <Button size="sm" onClick={() => setDialogOpen(true)}>
@@ -117,37 +116,50 @@ export function HealthCapitalPanel({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3">
               <div className="rounded-xl border border-line/70 bg-canvas/35 px-3 py-2.5">
-                <p className="text-[0.56rem] text-muted">累計歩数</p>
+                <p className="text-[0.56rem] text-muted">{copy.totalHeading}</p>
                 <p className="mt-1 text-[0.8rem] font-semibold tabular text-ink">
-                  {formatSteps(totalSteps)}
+                  {formatSteps(summary.total)}
                 </p>
-                {totalDistance ? (
+                {distance ? (
                   <p className="mt-0.5 text-[0.54rem] text-muted">
-                    概算 {totalDistance}
+                    概算 {distance}
                   </p>
                 ) : null}
+              </div>
+              <div className="rounded-xl border border-line/70 bg-canvas/35 px-3 py-2.5">
+                <p className="text-[0.56rem] text-muted">1日平均</p>
+                <p className="mt-1 text-[0.8rem] font-semibold tabular text-ink">
+                  {formatSteps(summary.average)}
+                </p>
+                <p className="mt-0.5 text-[0.54rem] text-muted">
+                  記録日数 {summary.recordedDays}日
+                </p>
               </div>
               <div className="rounded-xl border border-line/70 bg-canvas/35 px-3 py-2.5">
                 <p className="text-[0.56rem] text-muted">
-                  {range === '12m' ? '12ヶ月の合計' : '期間の合計'}
+                  {copy.comparisonHeading}
                 </p>
-                <p className="mt-1 text-[0.8rem] font-semibold tabular text-ink">
-                  {formatSteps(periodSteps)}
-                </p>
-                {periodDistance ? (
-                  <p className="mt-0.5 text-[0.54rem] text-muted">
-                    概算 {periodDistance}
-                  </p>
-                ) : null}
-              </div>
-              <div className="rounded-xl border border-line/70 bg-canvas/35 px-3 py-2.5">
-                <p className="text-[0.56rem] text-muted">記録日数</p>
-                <p className="mt-1 text-[0.8rem] font-semibold tabular text-ink">
-                  {periodRecords.length}日
-                </p>
-                <p className="mt-0.5 text-[0.54rem] text-muted">
-                  1日平均 {formatSteps(averageSteps)}
-                </p>
+                {summary.changeRatio === null ? (
+                  <>
+                    <p className="mt-1 text-[0.8rem] font-semibold text-muted">
+                      比較データなし
+                    </p>
+                    <p className="mt-0.5 text-[0.54rem] text-muted">
+                      前期間の記録がありません
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p
+                      className={`mt-1 text-[0.8rem] font-semibold tabular ${changeTone}`}
+                    >
+                      {formatSignedPercent(summary.changeRatio)}
+                    </p>
+                    <p className="mt-0.5 text-[0.54rem] text-muted">
+                      前期間 {formatSteps(summary.previousTotal)}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
@@ -166,36 +178,31 @@ export function HealthCapitalPanel({
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[0.65rem] font-medium text-muted">
               <span className="size-1.5 rounded-full bg-positive" />
-              {seriesLabel}
+              歩数
             </span>
             <Segmented
-              ariaLabel="歩数の表示"
-              value={series}
-              onChange={setSeries}
+              ariaLabel="歩数の集計単位"
+              value={granularity}
+              onChange={setGranularity}
               options={[
-                { value: 'cumulative', label: '累積' },
                 { value: 'daily', label: '日別' },
+                { value: 'monthly', label: '月別' },
+                { value: 'yearly', label: '年別' },
               ]}
             />
           </div>
 
-          {points.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-line bg-canvas/35 px-4 py-6 text-center text-[0.68rem] text-muted">
+          {!hasSteps ? (
+            <p className="mt-4 flex min-h-[220px] items-center justify-center rounded-xl border border-dashed border-line bg-canvas/35 px-4 py-6 text-center text-[0.68rem] text-muted">
               この期間の記録はありません。
             </p>
           ) : (
             <ClientChart height={252} className="-ml-2 mt-1">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart
-                  data={points}
+                <BarChart
+                  data={buckets}
                   margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
                 >
-                  <defs>
-                    <linearGradient id="stepFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2f7d5c" stopOpacity={0.24} />
-                      <stop offset="100%" stopColor="#2f7d5c" stopOpacity={0.01} />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid
                     vertical={false}
                     stroke="var(--line)"
@@ -206,30 +213,42 @@ export function HealthCapitalPanel({
                     tickLine={false}
                     axisLine={false}
                     tick={{ fontSize: 10, fill: 'var(--muted)' }}
-                    interval="preserveStartEnd"
+                    interval={
+                      granularity === 'daily' ? 'preserveStartEnd' : 0
+                    }
                     tickMargin={10}
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
                     width={58}
+                    allowDecimals={false}
+                    domain={[0, 'auto']}
                     tick={{ fontSize: 9.5, fill: 'var(--muted)' }}
                     tickFormatter={(value: number) => formatCompactSteps(value)}
                   />
                   <Tooltip
-                    content={(props) => <StepTooltip {...props} />}
-                    cursor={{ stroke: 'var(--line-strong)', strokeDasharray: '3 4' }}
+                    cursor={{ fill: 'var(--line)', fillOpacity: 0.35 }}
+                    content={(props) => {
+                      const bucket = props.payload?.[0]?.payload as
+                        | StepBucket
+                        | undefined
+                      return (
+                        <StepTooltip
+                          {...props}
+                          label={bucket?.label ?? props.label}
+                        />
+                      )
+                    }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey={valueKey}
-                    name={seriesLabel}
-                    stroke="#2f7d5c"
-                    strokeWidth={2.2}
-                    fill="url(#stepFill)"
-                    activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--surface)' }}
+                  <Bar
+                    dataKey="steps"
+                    name="歩数"
+                    fill="#2f7d5c"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={32}
                   />
-                </ComposedChart>
+                </BarChart>
               </ResponsiveContainer>
             </ClientChart>
           )}

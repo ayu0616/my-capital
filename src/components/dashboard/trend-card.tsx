@@ -72,15 +72,17 @@ export function TrendCard({
             onChange={setTrendSeries}
             options={trendOptions}
           />
-          <Segmented
-            ariaLabel="表示期間"
-            value={range}
-            onChange={setRange}
-            options={[
-              { value: '12m', label: '12ヶ月' },
-              { value: 'all', label: '全期間' },
-            ]}
-          />
+          {isHealth ? null : (
+            <Segmented
+              ariaLabel="表示期間"
+              value={range}
+              onChange={setRange}
+              options={[
+                { value: '12m', label: '12ヶ月' },
+                { value: 'all', label: '全期間' },
+              ]}
+            />
+          )}
         </div>
       </CardHeader>
 
@@ -91,7 +93,6 @@ export function TrendCard({
             lastStepSyncedAt={lastStepSyncedAt}
             strideCm={strideCm}
             today={today ?? ''}
-            range={range}
           />
         ) : series.length < 2 ? (
           <EmptyState
